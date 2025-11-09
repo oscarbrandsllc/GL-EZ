@@ -35,288 +35,39 @@ function showLegend(){ try{ document.getElementById('legend-section')?.classList
         const pageType = document.body.dataset.page || 'welcome';
         // New nav buttons
         const homeButton = document.getElementById('homeButton');
-        const rostersButton = document.getElementById('rostersButton');
-        const ownershipButton = document.getElementById('ownershipButton');
-    const statsButton = document.getElementById('statsButton');
-        const analyzerButton = document.getElementById('analyzerButton');
-        const researchButton = document.getElementById('researchButton');
-        const startSitButton = document.getElementById('startSitButton');
-        const gameLogsModal = document.getElementById('game-logs-modal');
-        const modalCloseBtn = document.querySelector('.modal-close-btn');
-        const modalInfoBtns = document.querySelectorAll('.modal-info-btn');
-        const statsKeyContainer = document.getElementById('stats-key-container');
-        const radarChartContainer = document.getElementById('radar-chart-container');
-        const newsContainer = document.getElementById('news-container');
-        const modalOverlay = document.querySelector('.modal-overlay');
-        const modalPlayerName = document.getElementById('modal-player-name');
-        const modalPlayerVitals = document.getElementById('modal-player-vitals');
-        const modalBody = document.getElementById('modal-body');
-    // comparison modal removed
-    const playerComparisonModal = null;
-    const comparisonBackgroundOverlay = null;
-        const supportsContentVisibility = typeof CSS !== 'undefined'
-            && typeof CSS.supports === 'function'
-            && CSS.supports('content-visibility', 'auto');
-        function updateRosterContentVisibility() {
-            if (!supportsContentVisibility || !rosterGrid) {
-                rosterContentVisibilityEnabled = false;
-                rosterGrid?.classList.remove('roster-cv-enabled');
-                return;
-            }
-            const shouldEnable = rosterContentVisibilityQuery ? rosterContentVisibilityQuery.matches : false;
-            rosterContentVisibilityEnabled = shouldEnable;
-            rosterGrid.classList.toggle('roster-cv-enabled', shouldEnable);
-        }
-        if (supportsContentVisibility) {
-            updateRosterContentVisibility();
-            if (rosterContentVisibilityQuery) {
-                const cvListener = () => updateRosterContentVisibility();
-                if (typeof rosterContentVisibilityQuery.addEventListener === 'function') {
-                    rosterContentVisibilityQuery.addEventListener('change', cvListener);
-                } else if (typeof rosterContentVisibilityQuery.addListener === 'function') {
-                    rosterContentVisibilityQuery.addListener(cvListener);
-                }
-            }
-        }
-        const COMPARE_BUTTON_PREVIEW_HTML = '<span class="button-text">Preview</span>';
-        const COMPARE_BUTTON_SHOW_ALL_HTML = '<span class="compare-show-all-stack"><i aria-hidden="true" class="fa-solid fa-arrows-left-right-to-line compare-show-all-icon"></i><span class="compare-show-all-label">Show All</span></span>';
-        if (compareButton) {
-            compareButton.innerHTML = COMPARE_BUTTON_PREVIEW_HTML;
-        }
-        // --- Navigation Logic ---
-        // Temporary focus suppression to prevent mobile keyboards from opening
-        // when navigation buttons are tapped and other scripts may re-focus inputs.
-        // We patch HTMLElement.prototype.focus to ignore focus calls on input-like
-        // elements for a short window after navigation gestures.
-        let __suppressFocusUntil = 0;
-        const __suppressFocusMs = 700;
-        function suppressFocusTemporary(ms) {
-            __suppressFocusUntil = Date.now() + (ms || __suppressFocusMs);
-        }
-        (function installFocusGuard(){
+        function renderPlayerComparison(players) {
+            // Player comparison UI has been removed per cleanup request.
             try {
-                const originalFocus = HTMLElement.prototype.focus;
-                HTMLElement.prototype.focus = function(...args) {
-                    try {
-                        const now = Date.now();
-                        if (now < __suppressFocusUntil) {
-                            const tag = (this && this.tagName) ? this.tagName.toUpperCase() : '';
-                            const isInputLike = tag === 'INPUT' || tag === 'TEXTAREA' || this.isContentEditable;
-                            if (isInputLike) {
-                                // swallow the focus call during suppression window
-                                return this;
-                            }
-                        }
-                    } catch (e) {
-                        // fall through to original focus if anything unexpected
-                    }
-                    return originalFocus.apply(this, args);
-                };
-            } catch (e) {
-                // If monkey-patching isn't allowed in some environments, ignore.
-            }
-        })();
-        // Optional focus-event instrumentation for debugging autofocusing issues.
-        // Enable by adding ?debugFocus=1 to the URL.
-        (function installFocusLogger(){
-            try {
-                const params = new URLSearchParams(window.location.search);
-                if (!params.has('debugFocus')) return;
-                if (params.get('debugFocus') !== '1') return;
-                window._focusLog = window._focusLog || [];
-                const maxEntries = 200;
-                const pushLog = (entry) => {
-                    window._focusLog.push(entry);
-                    if (window._focusLog.length > maxEntries) window._focusLog.shift();
-                };
-                document.addEventListener('focusin', (e) => {
-                    try {
-                        const el = e.target;
-                        const now = Date.now();
-                        const tag = el && el.tagName ? el.tagName.toLowerCase() : 'unknown';
-                        const name = el && (el.id || el.name || el.className) ? (el.id || el.name || el.className) : '';
-                        const stack = (new Error()).stack || '';
-                        const msg = `[focusin] ${new Date(now).toISOString()} ${tag} ${name}`;
-                        console.warn(msg);
-                        pushLog({ t: now, msg, tag, name, stack });
-                    } catch (e) {}
-                }, true);
-                // expose helper to dump logs
-                window.dumpFocusLog = function() { return (window._focusLog || []).slice(); };
-            } catch (e) {}
-        })();
-        // Extra protection: when the page is shown or becomes visible (navigation/back),
-        // re-enable temporary suppression and blur any active input to avoid the keyboard.
-        try {
-            window.addEventListener('pageshow', () => {
-                try { suppressFocusTemporary(800); } catch (e) {}
-                try { usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-            });
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') {
-                    try { suppressFocusTemporary(800); } catch (e) {}
-                    try { usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-                }
-            });
-            // As a final safety-net, intercept focusin events and blur input-like
-            // elements while suppression is active. This will catch focus that
-            // originates from browser heuristics or other scripts.
-            document.addEventListener('focusin', (e) => {
-                try {
-                    if (Date.now() < __suppressFocusUntil) {
-                        const el = e.target;
-                        const tag = el && el.tagName ? el.tagName.toUpperCase() : '';
-                        const isInputLike = tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
-                        if (isInputLike) {
-                            try { el.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-                        }
-                    }
-                } catch (e) {}
-            }, true);
-        } catch (e) {}
-        const getPageUrl = (page) => {
-            const username = usernameInput?.value?.trim() || '';
-            let url = '';
-            const base = pageType === 'welcome' ? '' : '../';
-            switch(page) {
-                case 'home':
-                    url = pageType === 'welcome' ? '#' : `${base}index.html`;
-                    break;
-                case 'rosters':
-                    url = `${base}rosters/rosters.html`;
-                    break;
-                case 'ownership':
-                    url = `${base}ownership/ownership.html`;
-                    break;
-                case 'stats':
-                    url = `${base}stats/stats.html`;
-                    break;
-                case 'analyzer':
-                    url = `${base}analyzer/analyzer.html`;
-                    break;
-                case 'research':
-                    url = `${base}research/research.html`;
-                    break;
-            }
-            if (username && page !== 'home') {
-                url += `?username=${encodeURIComponent(username)}`;
-                if (page === 'rosters' || page === 'analyzer' || page === 'stats') {
-                     const selected = leagueSelect?.value;
-                    if (selected && selected !== 'Select a league...') {
-                        url += `&leagueId=${selected}`;
-                    } else if (state.currentLeagueId) {
-                        url += `&leagueId=${state.currentLeagueId}`;
-                    }
-                }
-            }
-            return url;
-        };
-        // Ensure the username is valid for pages that require it.
-        async function ensureValidUser(username) {
-            if (!username || !username.trim()) {
-                throw new Error('Please enter a username');
-            }
-            try {
-                await fetchAndSetUser(username.trim());
-                return true;
-            } catch (e) {
-                throw e;
-            }
+                const comparisonModalBody = document.getElementById('comparison-modal-body');
+                if (comparisonModalBody) comparisonModalBody.innerHTML = '<p class="text-center p-4">Player comparison has been removed.</p>';
+            } catch (e) { /* noop */ }
+            return;
         }
-        // Helper wrapper to validate username for non-home pages and navigate.
-        async function ensureNavigate(page) {
-            if (page === 'home') {
-                window.location.href = getPageUrl('home');
-                return;
-            }
-            const username = usernameInput?.value?.trim() || '';
-            const pagesRequiringUsername = new Set(['rosters', 'ownership', 'analyzer']);
-            const needsValidation = pagesRequiringUsername.has(page);
-            if (needsValidation && !username) {
-                showTemporaryTooltip(usernameInput || document.body, 'League-Connected Content Requires a Valid Username Input via the Home Page');
-                return;
-            }
-            if (needsValidation) {
-                try {
-                    await ensureValidUser(username);
-                } catch (e) {
-                    showTemporaryTooltip(usernameInput || document.body, 'Username not found');
-                    return;
-                }
-            }
-            window.location.href = getPageUrl(page);
-        }
-        homeButton?.addEventListener('click', async () => {
-                 // Defensive blur to avoid mobile keyboards appearing when nav buttons are tapped
-                 try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-                 await ensureNavigate('home');
-        });
-        rostersButton?.addEventListener('click', async () => {
-            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-            await ensureNavigate('rosters');
-        });
-        ownershipButton?.addEventListener('click', async () => {
-            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-            await ensureNavigate('ownership');
-        });
-        // Placeholder stats button (inserted between Ownership and Analyzer)
-        statsButton?.addEventListener('click', async () => {
-            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-            await ensureNavigate('stats');
-        });
-        analyzerButton?.addEventListener('click', async () => {
-            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-            await ensureNavigate('analyzer');
-        });
-    researchButton?.addEventListener('click', async () => {
-            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-            await ensureNavigate('research');
-    });
-// Add pointer/touch guards so quick taps on mobile also blur the input before navigation fires
-['homeButton','rostersButton','ownershipButton','statsButton','analyzerButton','researchButton'].forEach(id=>{
-    const el = document.getElementById(id);
-    if (!el) return;
-    const handler = () => { try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch(e){} };
-    try {
-        el.addEventListener('pointerdown', handler, { passive: true });
-        el.addEventListener('touchstart', handler, { passive: true });
-    } catch (e) {
-        // some older browsers may throw on options; fall back
-        try { el.addEventListener('pointerdown', handler); el.addEventListener('touchstart', handler); } catch (e) {}
-    }
-});
-// --- Home page menu wiring (only when on welcome page) ---
-if (pageType === 'welcome') {
-    const homeMenuToggle = document.getElementById('homeMenuToggle');
-    const homeMenu = document.getElementById('homeMenu');
-    if (homeMenuToggle && homeMenu) {
-        homeMenuToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isOpen = homeMenu.classList.toggle('hidden') ? true : !homeMenu.classList.contains('hidden');
-            homeMenuToggle.setAttribute('aria-expanded', String(!homeMenu.classList.contains('hidden')));
-            homeMenu.setAttribute('aria-hidden', String(homeMenu.classList.contains('hidden')));
-        });
-        // Close menu when clicking outside
+        // Close menu when clicking outside (guarded)
         document.addEventListener('click', (e) => {
-            if (!homeMenu.contains(e.target) && !homeMenuToggle.contains(e.target)) {
-                if (!homeMenu.classList.contains('hidden')) {
-                    homeMenu.classList.add('hidden');
-                    homeMenuToggle.setAttribute('aria-expanded', 'false');
-                    homeMenu.setAttribute('aria-hidden', 'true');
+            try {
+                if (typeof homeMenu !== 'undefined' && homeMenu && typeof homeMenuToggle !== 'undefined' && homeMenuToggle) {
+                    if (!homeMenu.contains(e.target) && !homeMenuToggle.contains(e.target)) {
+                        if (!homeMenu.classList.contains('hidden')) {
+                            homeMenu.classList.add('hidden');
+                            homeMenuToggle.setAttribute('aria-expanded', 'false');
+                            homeMenu.setAttribute('aria-hidden', 'true');
+                        }
+                    }
                 }
-            }
+            } catch (err) { /* ignore */ }
         });
-        // Wire menu items
-        homeMenu.querySelectorAll('.home-menu-item').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const page = btn.dataset.page;
-                try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-                // reuse ensureNavigate to validate username where needed
-                await ensureNavigate(page);
+        // Wire menu items (guarded)
+        if (typeof homeMenu !== 'undefined' && homeMenu) {
+            homeMenu.querySelectorAll('.home-menu-item').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const page = btn.dataset.page;
+                    try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+                    // reuse ensureNavigate to validate username where needed
+                    await ensureNavigate(page);
+                });
             });
-        });
-    }
-}
+        }
         // --- State ---
 let state = { userId: null, leagues: [], players: {}, oneQbData: {}, sflxData: {}, currentLeagueId: null, isSuperflex: false, cache: {}, teamsToCompare: new Set(), isCompareMode: false, currentRosterView: 'positional', activePositions: new Set(), tradeBlock: {}, isTradeCollapsed: false, weeklyStats: {}, playerSeasonStats: {}, playerSeasonRanks: {}, playerWeeklyStats: {}, statsSheetsLoaded: false, seasonRankCache: null, isGameLogModalOpenFromComparison: false, liveWeeklyStats: {}, liveStatsLoaded: false, currentNflSeason: null, currentNflWeek: null, lastLiveStatsWeek: null, lastLiveStatsFetchTs: 0, calculatedRankCache: null, playerProjectionWeeks: {}, isStartSitMode: false, startSitSelections: [], startSitNextSide: 'left', startSitTeamName: null, leagueMatchupStats: {}, matchupDataLoaded: false, isGameLogFromStatsPage: false, statsPagePlayerData: null, currentGameLogsPlayerRanks: null, currentGameLogsSummary: null };
         const assignedLeagueColors = new Map();
@@ -393,26 +144,6 @@ let state = { userId: null, leagues: [], players: {}, oneQbData: {}, sflxData: {
                 if (e && e.target && e.target.blur) e.target.blur();
             });
             rosterGrid?.addEventListener('click', handleTeamSelect);
-            mainContent?.addEventListener('click', handleAssetClickForTrade);
-            tradeSimulator.addEventListener('click', (e) => {
-                const compareButton = e.target.closest('#comparePlayersButton');
-                if (compareButton) {
-                    const isModalOpen = !playerComparisonModal.classList.contains('hidden');
-                    if (isModalOpen) {
-                        closeComparisonModal();
-                    } else {
-                        const selectedPlayers = state.isStartSitMode
-                            ? state.startSitSelections
-                            : Object.values(state.tradeBlock).flat().filter(asset => asset.pos !== 'DP');
-                        if (selectedPlayers.length !== 2) {
-                            showTemporaryTooltip(compareButton, 'Please select exactly 2 players to compare.');
-                        } else {
-                            handlePlayerCompare(e);
-                        }
-                    }
-                }
-            });
-            compareButton?.addEventListener('click', handleCompareClick);
             positionalViewBtn?.addEventListener('click', () => setRosterView('positional'));
             lineupViewBtn?.addEventListener('click', () => setRosterView('lineup'));
             
@@ -847,20 +578,10 @@ let state = { userId: null, leagues: [], players: {}, oneQbData: {}, sflxData: {
                 }
             }
         }
+        // Ownership page removed: handleFetchOwnership noop to avoid runtime errors
         async function handleFetchOwnership() {
-            const username = usernameInput.value.trim();
-            if (!username) return;
-            setLoading(true, 'Fetching ownership data...');
-            try {
-                await fetchAndSetUser(username);
-                rosterView.classList.add('hidden');
-                playerListView.classList.remove('hidden');
-                await renderPlayerList();
-            } catch (error) {
-                handleError(error, username);
-            } finally {
-                setLoading(false);
-            }
+            // Ownership page removed — function intentionally left as noop.
+            return;
         }
         async function handleLeagueSelect() {
     hideLegend();
@@ -4625,362 +4346,24 @@ const wrTeStatOrder = [
             return row;
         }
         function renderStartSitPreview() {
-            const selections = state.startSitSelections || [];
-            const currentWeekNumber = getCurrentNflWeekNumber();
-            // weekLabel now holds just the WK number (e.g. WK5). Bracketing and styling are applied in the template.
-            const weekLabel = Number.isFinite(currentWeekNumber) ? `WK${currentWeekNumber}` : '';
-            const weekLabelDisplay = weekLabel ? `[${weekLabel}]` : '';
-            const escapeHtml = (value) => {
-                if (value === null || value === undefined) return '';
-                return String(value)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#039;');
-            };
-            tradeSimulator.innerHTML = `
-                            <div class="trade-container glass-panel start-sit-container">
-                    <div class="trade-header">
-                            <div class="trade-header-left">
-                            <h3><i class="fa-solid fa-elevator analyzer-icon"></i> Start/Sit<span class="start-sit-week">${weekLabelDisplay}</span></h3>
-                        </div>
-            <div class="trade-header-center">
-              <button id="collapseTradeButton"><i class="fa-solid fa-caret-down"></i></button>
-            </div>
-            <div class="trade-header-right">
-              <button id="comparePlayersButton" class="control-button-subtle">
-                <i class="fa-solid fa-chart-simple"></i>
-                <span class="label">Compare</span>
-              </button>
-              <button id="clearTradeButton" type="button">
-                <i class="fa-solid fa-eraser"></i>
-                <span class="label">Clear</span>
-              </button>
-              <button id="closeTradeButton" type="button">
-                <i class="fa-solid fa-circle-xmark"></i>
-                <span class="label">Close</span>
-              </button>
-            </div>
-          </div>
-          <div class="trade-body"></div>
-          <div class="trade-footnote">• Projected Points •</div>
-        </div>
-    <button id="showTradeButton"><i class="fa-solid fa-circle-chevron-up"></i> <span class="show-button-label">Start/Sit <i class="fa-solid fa-elevator analyzer-icon"></i></span><span class="start-sit-week"></span> <i class="fa-solid fa-circle-chevron-up"></i></button>
-  `;
-            const sides = ['left', 'right'];
-            const sideLabels = { left: 'Player 1', right: 'Player 2' };
-            const tradeBody = tradeSimulator.querySelector('.trade-body');
-            let bodyHtml = '';
-            sides.forEach((side, index) => {
-                const selection = selections.find(sel => sel.side === side);
-                let assetsHTML = '';
-                let totalDisplay = '—';
-                let projectionColor = 'var(--color-text-tertiary)';
-                let matchupSectionHtml = '';
-                if (selection) {
-                    const tagColor = TAG_COLORS[selection.pos] || 'var(--pos-bn)';
-                    const posForColor = selection.basePos || selection.pos;
-                    const rankColor = Number.isFinite(selection.ppgPosRank)
-                        ? getConditionalColorByRank(selection.ppgPosRank, posForColor)
-                        : 'var(--color-text-tertiary)';
-                    const baseLabel = posForColor || '';
-                    const rankText = (selection.ppgPosRankDisplay && selection.ppgPosRankDisplay !== 'NA')
-                        ? selection.ppgPosRankDisplay
-                        : (baseLabel ? `${baseLabel}·NA` : 'NA');
-                    const posColor = getPosRankColor(rankText);
-                    const ppgText = selection.ppgDisplay || 'NA';
-                    const hasPositivePpg = typeof selection.ppg === 'number' && selection.ppg > 0;
-                    const hasPpgRankNumber = Number.isFinite(selection.ppgPosRank) && selection.ppgPosRank > 0;
-                    const projectionValue = typeof selection.projection === 'number'
-                        ? selection.projection
-                        : Number.parseFloat(selection.projection);
-                    const ppgColor = hasPositivePpg && hasPpgRankNumber
-                        ? getConditionalColorByRank(selection.ppgPosRank, posForColor)
-                        : (hasPositivePpg ? 'var(--color-text-mid-test1)' : 'var(--color-text-tertiary)');
-                    const projectionDisplay = selection.projection !== null
-                        ? selection.projection.toFixed(1)
-                        : ((selection.projectionDisplay && selection.projectionDisplay.toUpperCase() !== 'NA') ? selection.projectionDisplay : '—');
-                    if (Number.isFinite(projectionValue)) {
-                        const derivedColor = getProjectionColorForValue(posForColor, projectionValue);
-                        if (derivedColor) {
-                            projectionColor = derivedColor;
-                        } else if (hasPpgRankNumber) {
-                            projectionColor = getConditionalColorByRank(selection.ppgPosRank, posForColor);
-                        } else if (hasPositivePpg) {
-                            projectionColor = 'var(--color-text-mid-test1)';
-                        } else {
-                            projectionColor = 'var(--color-text-secondary)';
-                        }
-                    }
-                    if (selection.matchup) {
-                        const { opponent, opponentOrdinal, opponentRankDisplay, color, isBye } = selection.matchup;
-                        const opponentText = opponent || (isBye ? 'BYE' : '');
-                        if (opponentText) {
-                            const opponentStyle = color && !isBye ? ` style="color: ${color};"` : '';
-                            const rankRawText = !isBye
-                                ? (opponentOrdinal || (opponentRankDisplay && opponentRankDisplay !== 'NA' ? opponentRankDisplay : ''))
-                                : '';
-                            const hasRankText = Boolean(rankRawText);
-                            const rankStyle = color && !isBye ? ` style="color: ${color};"` : '';
-                            const safeOpponent = escapeHtml(opponentText);
-                            const rankHtml = hasRankText
-                                ? `<span class="start-sit-matchup-sep">•</span><span class="start-sit-matchup-rank"${rankStyle}>${escapeHtml(rankRawText)}</span>`
-                                : '';
-                            matchupSectionHtml = `<div class="start-sit-matchup-meta"><span class="start-sit-matchup-opponent"${opponentStyle}>${safeOpponent}</span>${rankHtml}</div>`;
-                        }
-                    }
-                    const rankParts = rankText.split('·');
-                    const rankNumberDisplay = rankParts.length > 1 ? rankParts.slice(1).join('·') : 'NA';
-                    assetsHTML = `
-                        <div class="trade-asset-chip start-sit-chip">
-                            <div class="start-sit-chip-body">
-                                <span class="start-sit-name">
-                                    <span class="start-sit-inline-tag player-tag" style="background-color: ${tagColor};">${selection.pos}</span>
-                                    <span class="start-sit-name-text">${escapeHtml(selection.label)}</span>
-                                </span>
-                                <span class="start-sit-metric"><span class="start-sit-metric-value" style="color: ${ppgColor};">${ppgText}</span><span class="start-sit-metric-unit">PPG</span><span class="start-sit-metric-sep">•</span><span class="start-sit-rank"><span class="start-sit-rank-pos" style="color: ${posColor};">${posForColor}</span><span class="start-sit-rank-dot">·</span><span class="start-sit-rank-number" style="color: ${rankColor};">${rankNumberDisplay}</span></span></span>
-                            </div>
-                        </div>`;
-                    totalDisplay = projectionDisplay;
-                } else {
-                    assetsHTML = `<span class="text-xs text-slate-500 p-2">Select a player...</span>`;
-                }
-                const safeTotal = escapeHtml(totalDisplay);
-                bodyHtml += `
-                    <div class="trade-team-column start-sit-preview-column">
-                        <h4>${sideLabels[side]}</h4>
-                        <div class="trade-assets">${assetsHTML}</div>
-                        <div class="trade-total even start-sit-total">
-                            <span class="start-sit-total-label">Projected Points:</span>
-                            <span class="start-sit-total-value" style="color: ${projectionColor};">${safeTotal}</span>
-                        </div>
-                        ${matchupSectionHtml}
-                    </div>
-                `;
-                if (index < sides.length - 1) {
-                    bodyHtml += `<div class="trade-divider"></div>`;
-                }
-            });
-            tradeBody.innerHTML = bodyHtml;
-            const comparePlayersButton = document.getElementById('comparePlayersButton');
-            if (comparePlayersButton) {
-                if (selections.length === 2) {
-                    comparePlayersButton.classList.add('enabled');
-                } else {
-                    comparePlayersButton.classList.remove('enabled');
-                }
-            }
-            tradeSimulator.classList.toggle('collapsed', state.isTradeCollapsed);
-            const clearBtn = document.getElementById('clearTradeButton');
-            if (clearBtn) {
-                clearBtn.disabled = selections.length === 0;
-                clearBtn.addEventListener('click', clearStartSitSelections);
-            }
-            const closeBtn = document.getElementById('closeTradeButton');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => exitStartSitMode());
-            }
-            const collapseBtn = document.getElementById('collapseTradeButton');
-            if (collapseBtn) {
-                collapseBtn.addEventListener('click', () => {
-                    tradeSimulator.classList.add('collapsed');
-                    state.isTradeCollapsed = true;
-                    mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
-                    closeComparisonModal();
-                });
-            }
-            const showBtn = document.getElementById('showTradeButton');
-            if (showBtn) {
-                showBtn.addEventListener('click', () => {
-                    tradeSimulator.classList.remove('collapsed');
-                    state.isTradeCollapsed = false;
-                    mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
-                });
-            }
-            mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
+            // Start/Sit UI removed — keep tradeSimulator hidden
+            try {
+                if (tradeSimulator) { tradeSimulator.style.display = 'none'; tradeSimulator.innerHTML = ''; }
+            } catch (e) { /* noop */ }
         }
         function renderTradeBlock() {
-            const tradeEligible = state.isCompareMode && state.teamsToCompare.size >= 2;
-            const startSitActive = state.isStartSitMode;
-            if (!tradeEligible && !startSitActive) {
-                tradeSimulator.style.display = 'none';
-                tradeSimulator.innerHTML = '';
-                mainContent.style.paddingBottom = '1rem';
-                return;
-            }
-            tradeSimulator.style.display = 'block';
-            if (startSitActive) {
-                renderStartSitPreview();
-                return;
-            }
-            tradeSimulator.innerHTML = `
-              <div class="trade-container glass-panel">
-          <div class="trade-header">
-            <div class="trade-header-left">
-              <h3>Trade Preview <i class="fa-solid fa-code-compare fa-rotate-270"></i></h3>
-            </div>
-            <div class="trade-header-center">
-              <button id="collapseTradeButton"><i class="fa-solid fa-caret-down"></i></button>
-            </div>
-            <div class="trade-header-right">
-              <button id="comparePlayersButton" class="control-button-subtle">
-                <i class="fa-solid fa-chart-simple"></i>
-                <span class="label">Compare</span>
-              </button>
-              <button id="clearTradeButton" type="button">
-                <i class="fa-solid fa-eraser"></i>
-                <span class="label">Clear</span>
-              </button>
-              <button id="closeTradeButton" type="button">
-                <i class="fa-solid fa-circle-xmark"></i>
-                <span class="label">Close</span>
-              </button>
-            </div>
-          </div>
-          <div class="trade-body"></div>
-          <div class="trade-footnote">• Non-Adjusted Values •</div>
-        </div>
-        <button id="showTradeButton"><i class="fa-solid fa-circle-chevron-up"></i> Trade Preview <i class="fa-solid fa-circle-chevron-up"></i></button>
-  `;
-            const tradeBody = tradeSimulator.querySelector('.trade-body');
-            const teamNames = Array.from(state.teamsToCompare);
-            const tradeData = {};
-            teamNames.forEach(name => {
-                const assets = state.tradeBlock[name] || [];
-                const totalKtc = assets.reduce((sum, asset) => sum + asset.ktc, 0);
-                tradeData[name] = { assets, totalKtc };
-            });
-            const totals = teamNames.map(name => tradeData[name].totalKtc);
-            const totalClasses = {};
-            if (teamNames.length === 2) {
-                const diff = totals[0] - totals[1];
-                if (diff > 500) {
-                    totalClasses[teamNames[0]] = 'winning';
-                    totalClasses[teamNames[1]] = 'losing';
-                } else if (diff < -500) {
-                    totalClasses[teamNames[0]] = 'losing';
-                    totalClasses[teamNames[1]] = 'winning';
-                } else {
-                    totalClasses[teamNames[0]] = 'even';
-                    totalClasses[teamNames[1]] = 'even';
-                }
-            }
-            let bodyHtml = '';
-            teamNames.forEach((teamName, index) => {
-                const { assets, totalKtc } = tradeData[teamName];
-                let assetsHTML = '';
-                if (assets.length > 0) {
-                    assets.forEach(asset => {
-                        const ktcColor = getKtcColor(asset.ktc);
-                        const tagColor = TAG_COLORS[asset.pos] || 'var(--pos-bn)';
-                        assetsHTML += `<div class="trade-asset-chip"><span class="player-tag" style="background-color: ${tagColor};">${asset.pos || 'DP'}</span><span>${asset.label}</span><span class="ktc" style="color: ${ktcColor}">(${asset.ktc})</span></div>`;
-                    });
-                } else {
-                    assetsHTML = `<span class="text-xs text-slate-500 p-2">Select assets...</span>`;
-                }
-                const totalClass = totalClasses[teamName] || 'even';
-                let teamNameDisplay = teamName;
-                if (teamNames.length === 2) {
-                    if (index === 0) teamNameDisplay = `${teamName}`;
-                    if (index === 1) teamNameDisplay = `${teamName}`;
-                }
-                bodyHtml += `
-                    <div class="trade-team-column">
-                       <h4>${teamNameDisplay}</h4>
-                        <div class="trade-assets">${assetsHTML}</div>
-                        <div class="trade-total ${totalClass}">
-                            Total KTC: ${totalKtc}
-                        </div>
-                    </div>
-                `;
-                if (index < teamNames.length - 1 && teamNames.length > 1) {
-                     bodyHtml += `<div class="trade-divider"></div>`;
-                }
-            });
-            tradeBody.innerHTML = bodyHtml;
-            // Disable/enable Clear button based on whether any assets are selected
-            const clearBtn = document.getElementById('clearTradeButton');
+            // Trade preview / Start-Sit UI removed; ensure the element is hidden.
             try {
-                const hasAnyAssets = Object.values(tradeData).some(d => Array.isArray(d.assets) && d.assets.length > 0);
-                if (clearBtn) clearBtn.disabled = !hasAnyAssets;
-            } catch (e) { /* no-op */ }
-            const comparePlayersButton = document.getElementById('comparePlayersButton');
-            if (comparePlayersButton) {
-                const selectedPlayers = Object.values(state.tradeBlock).flat().filter(asset => asset.pos !== 'DP');
-                if (selectedPlayers.length === 2) {
-                    comparePlayersButton.classList.add('enabled');
-                } else {
-                    comparePlayersButton.classList.remove('enabled');
-                }
-            }
-            tradeSimulator.classList.toggle('collapsed', state.isTradeCollapsed);
-            document.getElementById('clearTradeButton').addEventListener('click', clearTrade);
-            const closeTradeButton = document.getElementById('closeTradeButton');
-            if (closeTradeButton) {
-                closeTradeButton.addEventListener('click', () => {
-                    handleClearCompare(true);
-                });
-            }
-            document.getElementById('collapseTradeButton').addEventListener('click', () => {
-                tradeSimulator.classList.add('collapsed');
-                state.isTradeCollapsed = true;
-                mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
-                closeComparisonModal();
-            });
-            document.getElementById('showTradeButton').addEventListener('click', () => {
-                tradeSimulator.classList.remove('collapsed');
-                state.isTradeCollapsed = false;
-                mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
-            });
-            mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
+                if (tradeSimulator) { tradeSimulator.style.display = 'none'; tradeSimulator.innerHTML = ''; }
+                mainContent.style.paddingBottom = '1rem';
+            } catch (e) { /* noop */ }
         }
         // --- Player List (Ownership) Functions ---
         async function renderPlayerList() {
-    hideLegend();
-            playerListView.innerHTML = '<p class="text-center p-4">Fetching user leagues and rosters...</p>';
-            assignedLeagueColors.clear();
-            nextColorIndex = 0;
-            assignedRyColors.clear();
-            nextRyColorIndex = 0;
-            const userLeagues = await fetchUserLeagues(state.userId);
-            const rostersByLeague = await Promise.all(userLeagues.map(l => fetchWithCache(`${API_BASE}/league/${l.league_id}/rosters`)));
-            const agg = new Map();
-            rostersByLeague.forEach((rosters, idx) => {
-                const leagueName = userLeagues[idx].name;
-                const leagueAbbr = getLeagueAbbr(leagueName);
-                const myRoster = rosters.find(r => r.owner_id === state.userId || (Array.isArray(r.co_owners) && r.co_owners.includes(state.userId)));
-                if (!myRoster) return;
-                const pids = new Set((myRoster.players || []).filter(Boolean));
-                pids.forEach(pid => {
-                    if (!agg.has(pid)) agg.set(pid, new Set());
-                    agg.get(pid).add(leagueAbbr);
-                });
-            });
-            const section = document.createElement('div');
-            section.className = 'player-list-section';
-            const header = createPlayerListHeader();
-            section.appendChild(header);
-            const rows = Array.from(agg.entries()).map(([pid, leagueSet]) => createPlayerListRow(pid, leagueSet, userLeagues.length)).filter(Boolean);
-            rows.sort((a, b) => {
-                const countDiff = Number(b.dataset.count || 0) - Number(a.dataset.count || 0);
-                if (countDiff !== 0) return countDiff;
-                return a.dataset.search.localeCompare(b.dataset.search);
-            });
-            rows.forEach(r => section.appendChild(r));
-            playerListView.innerHTML = '';
-            const searchInput = document.createElement('input');
-            searchInput.id = 'playerSearch';
-            searchInput.type = 'text';
-            searchInput.placeholder = 'Filter players by name...';
-            playerListView.appendChild(searchInput);
-            playerListView.appendChild(section);
-            searchInput.oninput = () => {
-                const term = searchInput.value.trim().toLowerCase();
-                section.querySelectorAll('.pl-player-row:not(.pl-list-header)').forEach(r => {
-                    r.style.display = (r.dataset.search || '').includes(term) ? 'flex' : 'none';
-                });
-            };
+            // Ownership / player list view removed per cleanup.
+            try {
+                if (playerListView) playerListView.innerHTML = '<p class="text-center p-4">Ownership view has been removed.</p>';
+            } catch (e) { /* noop */ }
         }
         function createPlayerListHeader() {
             const header = document.createElement('div');
