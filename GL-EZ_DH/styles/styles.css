@@ -1401,6 +1401,210 @@ body[data-page="welcome"] .enter-label { line-height: 1; }
             padding-bottom: 1rem; /* For scrollbar clearance */
             justify-content: center;
         }
+         #rosterGrid.is-preview-mode {
+            justify-content: center;
+        }
+        #rosterGrid.start-sit-mode {
+            gap: 0.04rem;
+            justify-content: center;
+        }
+            .qb-section h3 {
+            color: var(--pos-qb);
+            border: solid 1px #FF3A7599;
+            box-shadow: inset 0 0 20px #FF3A7520;
+    }
+        .rb-section h3 {
+            color: var(--pos-rb);
+            border: solid 1px #00EBC799;
+            box-shadow: inset 0 0 20px #00EBC716;
+    }
+         .wr-section h3 {
+            color: var(--pos-wr);
+            border: solid 1px #58A7FF99;
+            box-shadow: inset 0 0 20px #58A7FF20;
+    }
+        .te-section h3 {
+            color: var(--pos-te);
+            border: solid 1px #B469FF99;
+            box-shadow: inset 0 0 20px #B469FF20;
+    }
+    /* · · Card Box Shadows by POS · · */
+        .qb-section .player-row {
+            box-shadow: inset 0 0 15px #FF3A7522;   /* QB border */
+    }
+        .rb-section .player-row {
+            box-shadow: inset 0 0 15px #00EBC715;   /* RB border */
+    }
+        .wr-section .player-row {
+            box-shadow: inset 0 0 15px #58A7FF20;   /* WR border */
+    }
+        .te-section .player-row {
+            box-shadow: inset 0 0 15px #B469FF20;   /* TE border */
+    }
+/* ⬇︎ PLAYER & PICK CARD STYLES ⬇︎ */
+        .player-row, .pick-row {
+            background: var(--color-panel-bg);
+            border: 1px solid var(--color-panel-border);
+            border-radius: var(--card-border-radius);
+            padding: 0.15rem;
+            margin-top: 2px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.01rem;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(var(--roster-card-blur));
+            -webkit-backdrop-filter: blur(var(--roster-card-blur));
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .start-sit-column .player-row,
+        .start-sit-column .pick-row {
+            gap: 0.001rem;
+        }
+@media (min-width: 820px) {
+  .player-row,
+  .pick-row {
+      --roster-card-blur: 0px;
+      background: rgba(22, 24, 43, 0.35);
+      box-shadow: 0 12px 28px rgba(7, 10, 25, 0.32);
+      contain: paint;
+  }
+}
+        .is-trade-mode .player-row, .is-trade-mode .pick-row {
+            cursor: pointer;
+        }
+        .is-trade-mode .player-row:hover, .is-trade-mode .pick-row:hover {
+            border-color: var(--color-panel-border-glow);
+            transform: translateY(-2px);
+        }
+        .player-selected {
+            border-color: var(--color-accent-primary) !important;
+            box-shadow: 0 0 var(--glow-strength) var(--color-accent-primary-glow);
+        }
+        .player-main-line {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .player-injury-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-left: auto;
+            font-weight: 700;
+            font-size: 0.63rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+    .player-name {
+            font-weight: 400;
+            font-size: 0.75rem;
+            color: #d0d1ee;
+            line-height: 1.2;
+            white-space: nowrap !important;
+        }
+    .player-name-clickable {
+        text-decoration: underline;
+        text-decoration-color: #9096D090;
+    }
+        .player-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 1px 3px;
+            border-radius: 4px;
+            color: var(--color-bg);
+            line-height: 1;
+        }
+        .player-meta-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.01rem 0.1rem;
+            gap: 0.0rem;
+            font-size: 0.65rem;
+            color: var(--color-text-secondary);
+        }
+        .start-sit-column .player-meta-line {
+            padding: 0rem 0.1rem;
+        }
+        .team-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: 600;
+            padding: 1px 4px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+        .player-value-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.57rem;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            background: #1d223faa;
+            border-radius: 6px;
+            padding: 0.0rem 0.07rem;
+        }
+        .player-value-line .value {
+            font-weight: 600;
+            font-size: 0.63rem;
+            color: var(--color-text-primary);
+        }
+        /* Lower the rank annotation on player cards' KTC value line */
+        .player-value-line .has-rank-annotation .stat-rank-annotation {
+            transform: translateY(0.0rem);
+        }
+        .pick-row {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pick-label {
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+        .pick-ktc {
+            font-size: 0.7rem;
+            color: var(--color-text-secondary);
+        }
+        .pick-ktc .value {
+            font-weight: 700;
+            color: var(--color-text-primary);
+        }
+        .team-compare-checkbox {
+            appearance: none;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid var(--color-text-tertiary);
+            box-shadow: 0 0 7px #5300ff, inset 0 0 2px #7300ff;
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease-in-out;
+            justify-self: start;
+        }
+        .team-compare-checkbox.selected {
+            border-color: var(--color-accent-primary);
+            background-color: var(--color-accent-primary);
+            box-shadow: 0 0 var(--glow-strength) var(--color-accent-primary-glow);
+        }
+        .team-compare-checkbox.selected::after {
+            content: '✔';
+            position: absolute;
+            color: var(--color-bg);
+            font-size: 0.7rem;
+            font-weight: 900;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
 
         .roster-column {
             width: 129px;
