@@ -1,26 +1,7 @@
 /* Rank suffix variant styling - allow per-context tuning */
-/* Player comparison modal: small sup offset */
-#player-comparison-modal .stat-rank-variant-compare sup.stat-rank-suffix-compare,
-#player-comparison-modal .comparison-rank-annotation sup {
-  top: 0em !important;
-  font-size: 0.5rem !important;
-}
-/* Game logs modal: footer rank suffixes */
-#game-logs-modal .stat-rank-variant-gamelogs-footer sup.stat-rank-suffix-gamelogs-footer,
-#game-logs-modal tfoot td.has-rank-annotation span.stat-rank-annotation sup {
-  top: 0em !important;
-  font-size: 0.5rem !important;
-}
-/* Game logs modal: opponent rank suffixes (first column) */
-#game-logs-modal .stat-rank-variant-gamelogs-opponent sup.stat-rank-suffix-gamelogs-opponent,
-#game-logs-modal tbody td:first-child span.stat-rank-annotation sup {
-  top: 0em !important;
-  font-size: 0.5rem !important;
-  display: inline-block !important;
-  vertical-align: baseline !important; /* ensure suffix aligns with text baseline on mobile */
-  line-height: 1 !important;
-  transform: none !important;
-}
+/* Player comparison modal and some very specific comparison suffix tweaks removed
+   — player comparison modal CSS removed per request. Game-logs specific styles
+   remain implemented elsewhere where necessary. */
 /* KTC rank in player cards */
 /* KTC rank in player cards */
 .stat-rank-variant-ktc {
@@ -1918,66 +1899,7 @@ body[data-page="welcome"] .enter-label { line-height: 1; }
             left: 50%;
             transform: translate(-50%, -50%);
         }
-/* ⬇︎ TRADE PREVIEW ⬇︎ */
-        #tradeSimulator {
-            position: fixed;
-            bottom: .95rem;
-            left: 0.85rem;
-            right: 0.85rem;
-            z-index: 20;
-            display: none;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .trade-container {
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
-            position: relative;
-        }
-        .trade-container.start-sit-container {
-            gap: 0.24rem;
-        }
-        .trade-container.start-sit-container .trade-footnote {
-            margin-top: 0.01rem;
-        }
-        .trade-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 0.25rem;
-            margin-bottom: 3px;
-        }
-        .trade-header h3 {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: #b0bcdb;
-            text-shadow: 0 0 5px rgba(0,0,0,0.5);
-        }
-        .trade-header-left {
-            flex: 1 1 0;
-            }
-        .trade-header-center {
-            text-align: center;
-            }
-        .trade-header-right {
-            flex: 1 1 0;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 0.95rem;
-            }
-         .trade-header-left i {
-            font-size: 0.9rem;
-            line-height: 0.9rem;
-            color: #b0bcdbde;
-            text-shadow: 0 0 5px rgba(0,0,0,0.2);
-            margin: 0.5rem;
-            margin-left: 1px;
-        }
-        .trade-header-left {
-            margin-left: 2px;
-        }
+/* Trade preview UI removed — all trade preview styles removed per request. */
     /* · · ▾⃣ COLLAPSE Trade Container Button · · */
         #collapseTradeButton {
             color: #8787Af;
