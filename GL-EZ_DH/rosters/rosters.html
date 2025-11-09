@@ -37,14 +37,30 @@
     <div class="header-row" id="primary-header-row">
     <div class="nav-buttons-container">
       <button class="nav-button" id="homeButton" data-nav="home">
-        <img src="../assets/logos/App_Logo_icon256.png" alt="Dynasty Hub" class="nav-logo" aria-hidden="true" />
+  <img src="../assets/logos/App_Logo_icon256.png" alt="Dynasty Hub" class="nav-logo" aria-hidden="true" />
         <span class="nav-label">Home</span>
       </button>
-      <button class="nav-button active" id="rostersButton" data-nav="rosters">
-        <i class="fa-solid fa-clipboard-list" aria-hidden="true"></i>
-        <span class="nav-label">Rosters</span>
+            <button class="nav-button active" id="rostersButton" data-nav="rosters">
+                <i class="fa-solid fa-clipboard-list" aria-hidden="true"></i>
+                <span class="nav-label">Rosters</span>
+            </button>
+            <button class="nav-button" id="ownershipButton" data-nav="ownership">
+                <i class="fa-solid fa-percent" aria-hidden="true"></i>
+                <span class="nav-label">Ownership</span>
+            </button>
+      <button class="nav-button" id="statsButton" data-nav="stats">
+        <i class="fa-solid fa-chart-column" aria-hidden="true"></i>
+        <span class="nav-label">Stats</span>
       </button>
-    </div>
+            <button class="nav-button" id="analyzerButton" data-nav="analyzer">
+                <i class="fa-solid fa-square-poll-vertical" aria-hidden="true"></i>
+                <span class="nav-label">L.Analyze</span>
+            </button>
+            <button class="nav-button" id="researchButton" data-nav="research">
+                <i class="fa-solid fa-flask" aria-hidden="true"></i>
+                <span class="nav-label">Research</span>
+            </button>
+        </div>
     </div>
     <div id="contextual-controls">
         <div class="header-row" id="secondary-header-row">
@@ -108,7 +124,20 @@
                         <span class="sr-only">Clear filters</span>
                     </span>
                 </button>
-          <!-- compare-controls removed -->
+                <div class="compare-controls">
+                    <button class="control-button hidden" id="compareButton" aria-hidden="true" tabindex="-1" style="display:none;"></button>
+                    <button id="compareSearchToggle" class="control-button-subtle compare-search-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="compareSearchPopover">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <span class="sr-only">Search teams</span>
+                    </button>
+                    <div id="compareSearchPopover" class="compare-search-popover hidden" role="dialog" aria-modal="false">
+                        <button type="button" id="compareSearchClose" class="compare-search-close" aria-label="Close search popover">
+                            <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+                        </button>
+                        <label for="compareSearchInput" class="sr-only">Search teams</label>
+                        <input id="compareSearchInput" type="search" placeholder="Search Players…" autocomplete="off" inputmode="search" />
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -232,6 +261,7 @@
   </div>
 </div>
 
+<div id="comparison-modal-background-overlay" class="hidden"></div>
 <div id="game-logs-modal" class="hidden">
   <div class="modal-overlay"></div>
   <div class="modal-content glass-panel">
@@ -329,6 +359,25 @@
   </div>
 </div>
 </div>
+</div>
+
+<div id="player-comparison-modal" class="hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-content glass-panel">
+    <button class="modal-close-btn">&times;</button>
+    <div id="comparison-modal-header">
+      <h3>Player Compare <i class="fa-solid fa-chart-simple"></i></h3>
+    </div>
+    <div id="comparison-modal-body" class="modal-body">
+      <!-- Player comparison content will be rendered here -->
+    </div>
+    <div id="comparison-stats-key-container" class="hidden stats-key-panel">
+        <!-- Key for comparison stats can be added here if needed -->
+    </div>
+    <div class="modal-footer">
+      <!-- Footer content can be added here if needed -->
+    </div>
+  </div>
 </div>
   <script defer="True" src="../scripts/app.js?v=20250826235225"></script>
 </body>

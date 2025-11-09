@@ -14,13 +14,11 @@ function showLegend(){ try{ document.getElementById('legend-section')?.classList
             ? window.matchMedia('(max-width: 819px)')
             : null;
         let rosterContentVisibilityEnabled = false;
-    // Compare / trade UI is removed — keep variables defined as null to avoid
-    // ReferenceErrors from optional chaining elsewhere in the codebase.
-    const compareButton = null;
-    const compareSearchToggle  = null;
-    const compareSearchPopover = null;
-    const compareSearchInput   = null;
-    const compareSearchClose   = null;
+        const compareButton = document.getElementById('compareButton');
+        const compareSearchToggle  = document.getElementById('compareSearchToggle');
+        const compareSearchPopover = document.getElementById('compareSearchPopover');
+        const compareSearchInput   = document.getElementById('compareSearchInput');
+        const compareSearchClose   = document.getElementById('compareSearchClose');
         const positionalViewBtn = document.getElementById('positionalViewBtn');
         const lineupViewBtn = document.getElementById('lineupViewBtn');
         const viewDropdownToggle = document.getElementById('viewDropdownToggle');
@@ -29,45 +27,292 @@ function showLegend(){ try{ document.getElementById('legend-section')?.classList
         const viewDropdownLabel = document.getElementById('viewDropdownLabel');
         const positionalFiltersContainer = document.getElementById('positional-filters');
         const clearFiltersButton = document.getElementById('clearFiltersButton');
-    // trade simulator element removed/disabled
-    const tradeSimulator = null;
+        const tradeSimulator = document.getElementById('tradeSimulator');
         const mainContent = document.getElementById('content');
         const pageType = document.body.dataset.page || 'welcome';
         // New nav buttons
         const homeButton = document.getElementById('homeButton');
-        function renderPlayerComparison(players) {
-            // Player comparison UI has been removed per cleanup request.
-            try {
-                const comparisonModalBody = document.getElementById('comparison-modal-body');
-                if (comparisonModalBody) comparisonModalBody.innerHTML = '<p class="text-center p-4">Player comparison has been removed.</p>';
-            } catch (e) { /* noop */ }
-            return;
+        const rostersButton = document.getElementById('rostersButton');
+        const ownershipButton = document.getElementById('ownershipButton');
+    const statsButton = document.getElementById('statsButton');
+        const analyzerButton = document.getElementById('analyzerButton');
+        const researchButton = document.getElementById('researchButton');
+        const startSitButton = document.getElementById('startSitButton');
+        const gameLogsModal = document.getElementById('game-logs-modal');
+        const modalCloseBtn = document.querySelector('.modal-close-btn');
+        const modalInfoBtns = document.querySelectorAll('.modal-info-btn');
+        const statsKeyContainer = document.getElementById('stats-key-container');
+        const radarChartContainer = document.getElementById('radar-chart-container');
+        const newsContainer = document.getElementById('news-container');
+        const modalOverlay = document.querySelector('.modal-overlay');
+        const modalPlayerName = document.getElementById('modal-player-name');
+        const modalPlayerVitals = document.getElementById('modal-player-vitals');
+        const modalBody = document.getElementById('modal-body');
+        const playerComparisonModal = document.getElementById('player-comparison-modal');
+        const comparisonBackgroundOverlay = document.getElementById('comparison-modal-background-overlay');
+        const supportsContentVisibility = typeof CSS !== 'undefined'
+            && typeof CSS.supports === 'function'
+            && CSS.supports('content-visibility', 'auto');
+        function updateRosterContentVisibility() {
+            if (!supportsContentVisibility || !rosterGrid) {
+                rosterContentVisibilityEnabled = false;
+                rosterGrid?.classList.remove('roster-cv-enabled');
+                return;
+            }
+            const shouldEnable = rosterContentVisibilityQuery ? rosterContentVisibilityQuery.matches : false;
+            rosterContentVisibilityEnabled = shouldEnable;
+            rosterGrid.classList.toggle('roster-cv-enabled', shouldEnable);
         }
-        // Close menu when clicking outside (guarded)
-        document.addEventListener('click', (e) => {
+        if (supportsContentVisibility) {
+            updateRosterContentVisibility();
+            if (rosterContentVisibilityQuery) {
+                const cvListener = () => updateRosterContentVisibility();
+                if (typeof rosterContentVisibilityQuery.addEventListener === 'function') {
+                    rosterContentVisibilityQuery.addEventListener('change', cvListener);
+                } else if (typeof rosterContentVisibilityQuery.addListener === 'function') {
+                    rosterContentVisibilityQuery.addListener(cvListener);
+                }
+            }
+        }
+        const COMPARE_BUTTON_PREVIEW_HTML = '<span class="button-text">Preview</span>';
+        const COMPARE_BUTTON_SHOW_ALL_HTML = '<span class="compare-show-all-stack"><i aria-hidden="true" class="fa-solid fa-arrows-left-right-to-line compare-show-all-icon"></i><span class="compare-show-all-label">Show All</span></span>';
+        if (compareButton) {
+            compareButton.innerHTML = COMPARE_BUTTON_PREVIEW_HTML;
+        }
+        // --- Navigation Logic ---
+        // Temporary focus suppression to prevent mobile keyboards from opening
+        // when navigation buttons are tapped and other scripts may re-focus inputs.
+        // We patch HTMLElement.prototype.focus to ignore focus calls on input-like
+        // elements for a short window after navigation gestures.
+        let __suppressFocusUntil = 0;
+        const __suppressFocusMs = 700;
+        function suppressFocusTemporary(ms) {
+            __suppressFocusUntil = Date.now() + (ms || __suppressFocusMs);
+        }
+        (function installFocusGuard(){
             try {
-                if (typeof homeMenu !== 'undefined' && homeMenu && typeof homeMenuToggle !== 'undefined' && homeMenuToggle) {
-                    if (!homeMenu.contains(e.target) && !homeMenuToggle.contains(e.target)) {
-                        if (!homeMenu.classList.contains('hidden')) {
-                            homeMenu.classList.add('hidden');
-                            homeMenuToggle.setAttribute('aria-expanded', 'false');
-                            homeMenu.setAttribute('aria-hidden', 'true');
+                const originalFocus = HTMLElement.prototype.focus;
+                HTMLElement.prototype.focus = function(...args) {
+                    try {
+                        const now = Date.now();
+                        if (now < __suppressFocusUntil) {
+                            const tag = (this && this.tagName) ? this.tagName.toUpperCase() : '';
+                            const isInputLike = tag === 'INPUT' || tag === 'TEXTAREA' || this.isContentEditable;
+                            if (isInputLike) {
+                                // swallow the focus call during suppression window
+                                return this;
+                            }
+                        }
+                    } catch (e) {
+                        // fall through to original focus if anything unexpected
+                    }
+                    return originalFocus.apply(this, args);
+                };
+            } catch (e) {
+                // If monkey-patching isn't allowed in some environments, ignore.
+            }
+        })();
+        // Optional focus-event instrumentation for debugging autofocusing issues.
+        // Enable by adding ?debugFocus=1 to the URL.
+        (function installFocusLogger(){
+            try {
+                const params = new URLSearchParams(window.location.search);
+                if (!params.has('debugFocus')) return;
+                if (params.get('debugFocus') !== '1') return;
+                window._focusLog = window._focusLog || [];
+                const maxEntries = 200;
+                const pushLog = (entry) => {
+                    window._focusLog.push(entry);
+                    if (window._focusLog.length > maxEntries) window._focusLog.shift();
+                };
+                document.addEventListener('focusin', (e) => {
+                    try {
+                        const el = e.target;
+                        const now = Date.now();
+                        const tag = el && el.tagName ? el.tagName.toLowerCase() : 'unknown';
+                        const name = el && (el.id || el.name || el.className) ? (el.id || el.name || el.className) : '';
+                        const stack = (new Error()).stack || '';
+                        const msg = `[focusin] ${new Date(now).toISOString()} ${tag} ${name}`;
+                        console.warn(msg);
+                        pushLog({ t: now, msg, tag, name, stack });
+                    } catch (e) {}
+                }, true);
+                // expose helper to dump logs
+                window.dumpFocusLog = function() { return (window._focusLog || []).slice(); };
+            } catch (e) {}
+        })();
+        // Extra protection: when the page is shown or becomes visible (navigation/back),
+        // re-enable temporary suppression and blur any active input to avoid the keyboard.
+        try {
+            window.addEventListener('pageshow', () => {
+                try { suppressFocusTemporary(800); } catch (e) {}
+                try { usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+            });
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    try { suppressFocusTemporary(800); } catch (e) {}
+                    try { usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+                }
+            });
+            // As a final safety-net, intercept focusin events and blur input-like
+            // elements while suppression is active. This will catch focus that
+            // originates from browser heuristics or other scripts.
+            document.addEventListener('focusin', (e) => {
+                try {
+                    if (Date.now() < __suppressFocusUntil) {
+                        const el = e.target;
+                        const tag = el && el.tagName ? el.tagName.toUpperCase() : '';
+                        const isInputLike = tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+                        if (isInputLike) {
+                            try { el.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
                         }
                     }
+                } catch (e) {}
+            }, true);
+        } catch (e) {}
+        const getPageUrl = (page) => {
+            const username = usernameInput?.value?.trim() || '';
+            let url = '';
+            const base = pageType === 'welcome' ? '' : '../';
+            switch(page) {
+                case 'home':
+                    url = pageType === 'welcome' ? '#' : `${base}index.html`;
+                    break;
+                case 'rosters':
+                    url = `${base}rosters/rosters.html`;
+                    break;
+                case 'ownership':
+                    url = `${base}ownership/ownership.html`;
+                    break;
+                case 'stats':
+                    url = `${base}stats/stats.html`;
+                    break;
+                case 'analyzer':
+                    url = `${base}analyzer/analyzer.html`;
+                    break;
+                case 'research':
+                    url = `${base}research/research.html`;
+                    break;
+            }
+            if (username && page !== 'home') {
+                url += `?username=${encodeURIComponent(username)}`;
+                if (page === 'rosters' || page === 'analyzer' || page === 'stats') {
+                     const selected = leagueSelect?.value;
+                    if (selected && selected !== 'Select a league...') {
+                        url += `&leagueId=${selected}`;
+                    } else if (state.currentLeagueId) {
+                        url += `&leagueId=${state.currentLeagueId}`;
+                    }
                 }
-            } catch (err) { /* ignore */ }
-        });
-        // Wire menu items (guarded)
-        if (typeof homeMenu !== 'undefined' && homeMenu) {
-            homeMenu.querySelectorAll('.home-menu-item').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const page = btn.dataset.page;
-                    try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
-                    // reuse ensureNavigate to validate username where needed
-                    await ensureNavigate(page);
-                });
-            });
+            }
+            return url;
+        };
+        // Ensure the username is valid for pages that require it.
+        async function ensureValidUser(username) {
+            if (!username || !username.trim()) {
+                throw new Error('Please enter a username');
+            }
+            try {
+                await fetchAndSetUser(username.trim());
+                return true;
+            } catch (e) {
+                throw e;
+            }
         }
+        // Helper wrapper to validate username for non-home pages and navigate.
+        async function ensureNavigate(page) {
+            if (page === 'home') {
+                window.location.href = getPageUrl('home');
+                return;
+            }
+            const username = usernameInput?.value?.trim() || '';
+            const pagesRequiringUsername = new Set(['rosters', 'ownership', 'analyzer']);
+            const needsValidation = pagesRequiringUsername.has(page);
+            if (needsValidation && !username) {
+                showTemporaryTooltip(usernameInput || document.body, 'League-Connected Content Requires a Valid Username Input via the Home Page');
+                return;
+            }
+            if (needsValidation) {
+                try {
+                    await ensureValidUser(username);
+                } catch (e) {
+                    showTemporaryTooltip(usernameInput || document.body, 'Username not found');
+                    return;
+                }
+            }
+            window.location.href = getPageUrl(page);
+        }
+        homeButton?.addEventListener('click', async () => {
+                 // Defensive blur to avoid mobile keyboards appearing when nav buttons are tapped
+                 try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+                 await ensureNavigate('home');
+        });
+        rostersButton?.addEventListener('click', async () => {
+            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+            await ensureNavigate('rosters');
+        });
+        ownershipButton?.addEventListener('click', async () => {
+            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+            await ensureNavigate('ownership');
+        });
+        // Placeholder stats button (inserted between Ownership and Analyzer)
+        statsButton?.addEventListener('click', async () => {
+            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+            await ensureNavigate('stats');
+        });
+        analyzerButton?.addEventListener('click', async () => {
+            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+            await ensureNavigate('analyzer');
+        });
+    researchButton?.addEventListener('click', async () => {
+            try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+            await ensureNavigate('research');
+    });
+// Add pointer/touch guards so quick taps on mobile also blur the input before navigation fires
+['homeButton','rostersButton','ownershipButton','statsButton','analyzerButton','researchButton'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (!el) return;
+    const handler = () => { try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch(e){} };
+    try {
+        el.addEventListener('pointerdown', handler, { passive: true });
+        el.addEventListener('touchstart', handler, { passive: true });
+    } catch (e) {
+        // some older browsers may throw on options; fall back
+        try { el.addEventListener('pointerdown', handler); el.addEventListener('touchstart', handler); } catch (e) {}
+    }
+});
+// --- Home page menu wiring (only when on welcome page) ---
+if (pageType === 'welcome') {
+    const homeMenuToggle = document.getElementById('homeMenuToggle');
+    const homeMenu = document.getElementById('homeMenu');
+    if (homeMenuToggle && homeMenu) {
+        homeMenuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = homeMenu.classList.toggle('hidden') ? true : !homeMenu.classList.contains('hidden');
+            homeMenuToggle.setAttribute('aria-expanded', String(!homeMenu.classList.contains('hidden')));
+            homeMenu.setAttribute('aria-hidden', String(homeMenu.classList.contains('hidden')));
+        });
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!homeMenu.contains(e.target) && !homeMenuToggle.contains(e.target)) {
+                if (!homeMenu.classList.contains('hidden')) {
+                    homeMenu.classList.add('hidden');
+                    homeMenuToggle.setAttribute('aria-expanded', 'false');
+                    homeMenu.setAttribute('aria-hidden', 'true');
+                }
+            }
+        });
+        // Wire menu items
+        homeMenu.querySelectorAll('.home-menu-item').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const page = btn.dataset.page;
+                try { suppressFocusTemporary(); usernameInput?.blur(); if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
+                // reuse ensureNavigate to validate username where needed
+                await ensureNavigate(page);
+            });
+        });
+    }
+}
         // --- State ---
 let state = { userId: null, leagues: [], players: {}, oneQbData: {}, sflxData: {}, currentLeagueId: null, isSuperflex: false, cache: {}, teamsToCompare: new Set(), isCompareMode: false, currentRosterView: 'positional', activePositions: new Set(), tradeBlock: {}, isTradeCollapsed: false, weeklyStats: {}, playerSeasonStats: {}, playerSeasonRanks: {}, playerWeeklyStats: {}, statsSheetsLoaded: false, seasonRankCache: null, isGameLogModalOpenFromComparison: false, liveWeeklyStats: {}, liveStatsLoaded: false, currentNflSeason: null, currentNflWeek: null, lastLiveStatsWeek: null, lastLiveStatsFetchTs: 0, calculatedRankCache: null, playerProjectionWeeks: {}, isStartSitMode: false, startSitSelections: [], startSitNextSide: 'left', startSitTeamName: null, leagueMatchupStats: {}, matchupDataLoaded: false, isGameLogFromStatsPage: false, statsPagePlayerData: null, currentGameLogsPlayerRanks: null, currentGameLogsSummary: null };
         const assignedLeagueColors = new Map();
@@ -144,6 +389,26 @@ let state = { userId: null, leagues: [], players: {}, oneQbData: {}, sflxData: {
                 if (e && e.target && e.target.blur) e.target.blur();
             });
             rosterGrid?.addEventListener('click', handleTeamSelect);
+            mainContent?.addEventListener('click', handleAssetClickForTrade);
+            tradeSimulator.addEventListener('click', (e) => {
+                const compareButton = e.target.closest('#comparePlayersButton');
+                if (compareButton) {
+                    const isModalOpen = !playerComparisonModal.classList.contains('hidden');
+                    if (isModalOpen) {
+                        closeComparisonModal();
+                    } else {
+                        const selectedPlayers = state.isStartSitMode
+                            ? state.startSitSelections
+                            : Object.values(state.tradeBlock).flat().filter(asset => asset.pos !== 'DP');
+                        if (selectedPlayers.length !== 2) {
+                            showTemporaryTooltip(compareButton, 'Please select exactly 2 players to compare.');
+                        } else {
+                            handlePlayerCompare(e);
+                        }
+                    }
+                }
+            });
+            compareButton?.addEventListener('click', handleCompareClick);
             positionalViewBtn?.addEventListener('click', () => setRosterView('positional'));
             lineupViewBtn?.addEventListener('click', () => setRosterView('lineup'));
             
@@ -578,10 +843,20 @@ let state = { userId: null, leagues: [], players: {}, oneQbData: {}, sflxData: {
                 }
             }
         }
-        // Ownership page removed: handleFetchOwnership noop to avoid runtime errors
         async function handleFetchOwnership() {
-            // Ownership page removed — function intentionally left as noop.
-            return;
+            const username = usernameInput.value.trim();
+            if (!username) return;
+            setLoading(true, 'Fetching ownership data...');
+            try {
+                await fetchAndSetUser(username);
+                rosterView.classList.add('hidden');
+                playerListView.classList.remove('hidden');
+                await renderPlayerList();
+            } catch (error) {
+                handleError(error, username);
+            } finally {
+                setLoading(false);
+            }
         }
         async function handleLeagueSelect() {
     hideLegend();
@@ -632,37 +907,520 @@ let state = { userId: null, leagues: [], players: {}, oneQbData: {}, sflxData: {
                 setLoading(false);
             }
         }
-        // --- Compare & Trade Logic REMOVED ---
-        // The player-compare modal and trade preview functionality have been removed
-        // per request. Provide small no-op stubs so remaining roster/game-log code
-        // that may reference these functions/identifiers does not throw.
-                function handleTeamSelect(e) { /* compare/trade removed */ }
-                function updateHeaderPreviewState() { /* compare/trade removed */ }
-                function handleCompareClick() { /* compare/trade removed */ }
-                function handleStartSitButtonClick() { if (state.isStartSitMode) exitStartSitMode(); else enterStartSitMode(); }
-                function enterStartSitMode() { /* keep real logic if needed elsewhere */
-                    // original start/sit logic preserved elsewhere — this is a placeholder
+        // --- Compare & Trade Logic ---
+        function handleTeamSelect(e) {
+            const header = e.target.closest('.team-header-item');
+            if (header) {
+                if (state.isStartSitMode) {
+                    exitStartSitMode();
                 }
-                function exitStartSitMode() { /* placeholder */ }
-                function clearStartSitSelections() { state.startSitSelections = []; state.startSitNextSide = 'left'; }
-                function recalcStartSitNextSide() { /* placeholder */ }
-                function getPlayerProjectionForWeek(playerId, week = null) { /* unchanged; actual implementation exists elsewhere */
-                    if (!playerId) return { value: null, display: 'NA' };
-                    return { value: null, display: 'NA' };
+                const checkbox = header.querySelector('.team-compare-checkbox');
+                const teamName = checkbox.dataset.teamName;
+                const isSelected = state.teamsToCompare.has(teamName);
+                if (isSelected) {
+                    // If a team is deselected, hide the trade preview
+                    state.teamsToCompare.delete(teamName);
+                    checkbox.classList.remove('selected');
+                    state.isCompareMode = false;
+                    rosterView.classList.remove('is-trade-mode');
+                    rosterGrid.classList.remove('is-preview-mode');
+                    clearTrade();
+                    setTimeout(() => window.scrollTo(0, 0), 0); // scroll to top
+                    updateHeaderPreviewState(); // call before render
+                    if (typeof window.updateMobileLeagueNav === 'function') {
+                        window.updateMobileLeagueNav();
+                    }
+                    renderAllTeamData(state.currentTeams);
+                } else {
+                    // If a new team is selected
+                    if (state.teamsToCompare.size >= 2) {
+                        // Prevent selecting more than 2 teams
+                        return;
+                    }
+                    state.teamsToCompare.add(teamName);
+                    checkbox.classList.add('selected');
+                    if (state.teamsToCompare.size === 2) {
+                        // If we now have 2 teams, show the preview
+                        state.isCompareMode = true;
+                        rosterView.classList.add('is-trade-mode');
+                        rosterGrid.classList.add('is-preview-mode');
+                        setTimeout(() => window.scrollTo(0, 0), 0); // scroll to top
+                        updateHeaderPreviewState(); // call before render
+                        if (typeof window.updateMobileLeagueNav === 'function') {
+                            window.updateMobileLeagueNav();
+                        }
+                        renderAllTeamData(state.currentTeams);
+                        renderTradeBlock();
+                    }
                 }
-                function getPlayerMatchupForWeek(playerId, week = null) { return null; }
-                function getUpcomingProjectionDesignation(playerId) { return null; }
-                function handleStartSitPlayerClick(e) { /* placeholder */ }
-                function handleClearCompare(keepUserTeam = false) { state.teamsToCompare = new Set(); state.isCompareMode = false; }
-                function lockCompareButtonSize() { /* noop */ }
-                function unlockCompareButtonSize() { /* noop */ }
-                function updateCompareButtonState() { /* noop */ }
-                function openCompareSearch() { /* noop */ }
-                function closeCompareSearch() { /* noop */ }
-                function openViewDropdown() { if (!viewDropdownMenu || !viewDropdownToggle) return; viewDropdownMenu.classList.remove('hidden'); viewDropdownToggle.setAttribute('aria-expanded', 'true'); }
-                function closeViewDropdown() { if (!viewDropdownMenu || !viewDropdownToggle) return; viewDropdownMenu.classList.add('hidden'); viewDropdownToggle.setAttribute('aria-expanded', 'false'); }
-                function filterTeamsByQuery(q) { /* noop */ }
-                let searchDebounce; /* removed compare search handlers */
+                updateCompareButtonState();
+            }
+        }
+        function updateHeaderPreviewState() {
+            const appHeader = document.querySelector('.app-header');
+            if (appHeader) {
+                appHeader.classList.toggle('preview-active', state.isCompareMode || state.isStartSitMode);
+            }
+        }
+        function handleCompareClick() {
+            if (state.isStartSitMode) {
+                exitStartSitMode();
+            }
+            state.isCompareMode = !state.isCompareMode;
+            rosterView.classList.toggle('is-trade-mode', state.isCompareMode);
+            rosterGrid.classList.toggle('is-preview-mode', state.isCompareMode);
+            updateCompareButtonState();
+            updateHeaderPreviewState(); // call before render
+            if (typeof window.updateMobileLeagueNav === 'function') {
+                window.updateMobileLeagueNav();
+            }
+            if (!state.isCompareMode) {
+                clearTrade();
+                setTimeout(() => window.scrollTo(0, 0), 0); // scroll to top
+            } else {
+                setTimeout(() => window.scrollTo(0, 0), 0); // scroll to top
+                renderTradeBlock();
+            }
+            renderAllTeamData(state.currentTeams);
+        }
+        function handleStartSitButtonClick() {
+            if (state.isStartSitMode) {
+                exitStartSitMode();
+            } else {
+                enterStartSitMode();
+            }
+        }
+        function enterStartSitMode() {
+            const teams = state.currentTeams || [];
+            const userTeam = teams.find(team => team.teamName === state.userTeamName) || teams.find(team => team.isUserTeam);
+            if (!userTeam) {
+                if (startSitButton) {
+                    showTemporaryTooltip(startSitButton, 'Load your roster first.');
+                }
+                return;
+            }
+            if (state.isCompareMode) {
+                handleClearCompare();
+            }
+            startSitButton?.classList.add('active');
+            state.isStartSitMode = true;
+            state.startSitTeamName = userTeam.teamName;
+            state.startSitSelections = [];
+            state.startSitNextSide = 'left';
+            rosterView.classList.add('is-trade-mode');
+            rosterGrid.classList.add('is-preview-mode');
+            rosterGrid.classList.add('start-sit-mode');
+            try { closeCompareSearch(); } catch (e) {}
+            updateHeaderPreviewState();
+            if (typeof window.updateMobileLeagueNav === 'function') {
+                window.updateMobileLeagueNav();
+            }
+            setTimeout(() => window.scrollTo(0, 0), 0);
+            if (state.currentTeams) {
+                renderAllTeamData(state.currentTeams);
+            }
+            renderTradeBlock();
+        }
+        function exitStartSitMode() {
+            if (!state.isStartSitMode) return;
+            state.isStartSitMode = false;
+            state.startSitSelections = [];
+            state.startSitNextSide = 'left';
+            rosterView.classList.remove('is-trade-mode');
+            rosterGrid.classList.remove('is-preview-mode');
+            rosterGrid.classList.remove('start-sit-mode');
+            startSitButton?.classList.remove('active');
+            updateHeaderPreviewState();
+            if (typeof window.updateMobileLeagueNav === 'function') {
+                window.updateMobileLeagueNav();
+            }
+            try { closeComparisonModal(); } catch (e) {}
+            try {
+                if (gameLogsModal && !gameLogsModal.classList.contains('hidden')) {
+                    closeModal();
+                }
+            } catch (e) {}
+            renderTradeBlock();
+            if (state.currentTeams) {
+                renderAllTeamData(state.currentTeams);
+            }
+        }
+        function clearStartSitSelections() {
+            if (!state.isStartSitMode) return;
+            state.startSitSelections = [];
+            state.startSitNextSide = 'left';
+            document.querySelectorAll('.roster-column.start-sit-column .player-selected').forEach(el => {
+                el.classList.remove('player-selected');
+                delete el.dataset.startSitSide;
+            });
+            renderTradeBlock();
+        }
+        function recalcStartSitNextSide() {
+            const count = state.startSitSelections.length;
+            if (count === 0) {
+                state.startSitNextSide = 'left';
+                return;
+            }
+            if (count === 1) {
+                state.startSitNextSide = state.startSitSelections[0].side === 'left' ? 'right' : 'left';
+                return;
+            }
+            state.startSitNextSide = count % 2 === 0 ? 'left' : 'right';
+        }
+        function getPlayerProjectionForWeek(playerId, week = null) {
+            if (!playerId) return { value: null, display: 'NA' };
+            const fallbackWeek = getCurrentNflWeekNumber();
+            const candidateWeek = Number(week);
+            const numericWeek = Number.isFinite(candidateWeek) && candidateWeek > 0
+                ? candidateWeek
+                : (Number.isFinite(fallbackWeek) && fallbackWeek > 0 ? fallbackWeek : null);
+            if (!Number.isFinite(numericWeek)) return { value: null, display: 'NA' };
+            const resolveProjection = (statSource) => {
+                if (!statSource || !Object.prototype.hasOwnProperty.call(statSource, 'proj')) return null;
+                const raw = statSource.proj;
+                if (raw === undefined || raw === null) return null;
+                const trimmed = String(raw).trim();
+                if (!trimmed) return null;
+                if (trimmed.toUpperCase() === 'NA') return { value: null, display: 'NA' };
+                const numeric = Number.parseFloat(trimmed.replace(/[^0-9.\-]/g, ''));
+                const value = Number.isFinite(numeric) ? numeric : null;
+                return {
+                    value,
+                    display: value !== null ? value.toFixed(1) : trimmed
+                };
+            };
+            const sheetResult = resolveProjection(state.playerWeeklyStats?.[numericWeek]?.[playerId]);
+            if (sheetResult) return sheetResult;
+            const liveResult = resolveProjection(state.liveWeeklyStats?.[numericWeek]?.[playerId]);
+            if (liveResult) return liveResult;
+            return { value: null, display: 'NA' };
+        }
+        function getPlayerMatchupForWeek(playerId, week = null) {
+            if (!playerId) return null;
+            const fallbackWeek = getCurrentNflWeekNumber();
+            const candidateWeek = Number(week);
+            const numericWeek = Number.isFinite(candidateWeek) && candidateWeek > 0
+                ? candidateWeek
+                : (Number.isFinite(fallbackWeek) && fallbackWeek > 0 ? fallbackWeek : null);
+            if (!Number.isFinite(numericWeek)) return null;
+            const extractFromStats = (stats) => {
+                if (!stats) return null;
+                const opponentRaw = stats.opponent;
+                const opponent = typeof opponentRaw === 'string' ? opponentRaw.trim() : '';
+                const isBye = opponent.toUpperCase() === 'BYE';
+                let rankValue = null;
+                const rankRaw = stats.opponent_rank;
+                if (typeof rankRaw === 'number' && Number.isFinite(rankRaw)) {
+                    rankValue = rankRaw;
+                } else if (typeof rankRaw === 'string') {
+                    const trimmedRank = rankRaw.trim();
+                    if (trimmedRank && trimmedRank.toUpperCase() !== 'NA') {
+                        const parsedRank = Number.parseInt(trimmedRank.replace(/[^0-9]/g, ''), 10);
+                        if (Number.isFinite(parsedRank)) {
+                            rankValue = parsedRank;
+                        }
+                    }
+                }
+                const hasOpponent = Boolean(opponent) || isBye;
+                const hasRank = Number.isFinite(rankValue);
+                if (!hasOpponent && !hasRank) return null;
+                const rankDisplay = getRankDisplayText(rankRaw);
+                const ordinalDisplay = hasRank ? ordinalSuffix(rankValue) : null;
+                const color = hasRank ? getOpponentRankColor(rankValue) : null;
+                return {
+                    opponent: isBye ? 'BYE' : opponent,
+                    opponentRank: hasRank ? rankValue : null,
+                    opponentRankDisplay: rankDisplay,
+                    opponentOrdinal: ordinalDisplay,
+                    color: color || null,
+                    isBye
+                };
+            };
+            const sources = [
+                state.playerWeeklyStats?.[numericWeek]?.[playerId],
+                state.liveWeeklyStats?.[numericWeek]?.[playerId]
+            ];
+            for (const stats of sources) {
+                const matchup = extractFromStats(stats);
+                if (matchup) return matchup;
+            }
+            return null;
+        }
+        function getUpcomingProjectionDesignation(playerId) {
+            if (!playerId) return null;
+            const currentWeek = getCurrentNflWeekNumber();
+            if (!Number.isFinite(currentWeek)) return null;
+            const statSources = [
+                state.playerWeeklyStats?.[currentWeek]?.[playerId],
+                state.liveWeeklyStats?.[currentWeek]?.[playerId]
+            ];
+            for (const statSource of statSources) {
+                if (!statSource || !Object.prototype.hasOwnProperty.call(statSource, 'proj')) continue;
+                const parsed = parseInjuryDesignation(statSource.proj);
+                if (!parsed) continue;
+                return { designation: parsed.designation, color: parsed.color, week: currentWeek };
+            }
+            const projectionInfo = getPlayerProjectionForWeek(playerId, currentWeek);
+            const fallback = parseInjuryDesignation(projectionInfo?.display);
+            if (!fallback) return null;
+            return { designation: fallback.designation, color: fallback.color, week: currentWeek };
+        }
+        function handleStartSitPlayerClick(e) {
+            const row = e.target.closest('.player-row');
+            if (!row) return;
+            const column = row.closest('.roster-column.start-sit-column');
+            if (!column) return;
+            const teamName = column.dataset.teamName;
+            if (!teamName || teamName !== state.startSitTeamName) return;
+            const playerId = row.dataset.assetId;
+            if (!playerId) return;
+            // Toggle selection if already selected
+            const existingIndex = state.startSitSelections.findIndex(sel => sel.id === playerId);
+            if (existingIndex > -1) {
+                state.startSitSelections.splice(existingIndex, 1);
+                row.classList.remove('player-selected');
+                delete row.dataset.startSitSide;
+                recalcStartSitNextSide();
+                renderTradeBlock();
+                return;
+            }
+            if (state.startSitSelections.length >= 2) {
+                showTemporaryTooltip(row, 'Select up to two players.');
+                return;
+            }
+            const ranks = calculatePlayerStatsAndRanks(playerId) || getDefaultPlayerRanks();
+            const activeWeek = getCurrentNflWeekNumber();
+            const rawPpg = typeof ranks.ppg === 'number' ? ranks.ppg : Number.parseFloat(String(ranks.ppg || '').replace(/[^0-9.\-]/g, ''));
+            const hasPpg = Number.isFinite(rawPpg);
+            const ppgValue = hasPpg ? Number(rawPpg) : null;
+            const ppgDisplay = hasPpg ? ppgValue.toFixed(1) : 'NA';
+            const rawPpgRank = Number.parseInt(String(ranks.ppgPosRank || '').replace(/[^0-9]/g, ''), 10);
+            const hasPpgRank = Number.isFinite(rawPpgRank) && rawPpgRank > 0;
+            const basePosRaw = (row.dataset.assetBasePos || '').toUpperCase();
+            const displayPos = (row.dataset.assetPos || basePosRaw || '').toUpperCase();
+            const normalizedBasePos = basePosRaw || displayPos || '';
+            const rankDisplay = normalizedBasePos
+                ? (hasPpgRank ? `${normalizedBasePos}·${rawPpgRank}` : `${normalizedBasePos}·NA`)
+                : (hasPpgRank ? `${rawPpgRank}` : 'NA');
+            const projectionInfo = getPlayerProjectionForWeek(playerId, activeWeek);
+            const projectionValue = projectionInfo?.value ?? null;
+            const projectionDisplay = projectionInfo?.display || 'NA';
+            const matchupInfo = getPlayerMatchupForWeek(playerId, activeWeek);
+            const selection = {
+                id: playerId,
+                label: row.dataset.assetLabel || row.querySelector('.player-name-clickable')?.textContent || 'Unknown Player',
+                pos: displayPos || normalizedBasePos || '',
+                basePos: normalizedBasePos,
+                team: row.dataset.assetTeam || 'FA',
+                side: state.startSitNextSide,
+                ppg: ppgValue,
+                ppgDisplay,
+                ppgPosRank: hasPpgRank ? rawPpgRank : null,
+                ppgPosRankDisplay: rankDisplay,
+                projection: projectionValue,
+                projectionDisplay,
+                matchup: matchupInfo
+            };
+            state.startSitSelections.push(selection);
+            row.classList.add('player-selected');
+            row.dataset.startSitSide = selection.side;
+            state.startSitNextSide = selection.side === 'left' ? 'right' : 'left';
+            renderTradeBlock();
+        }
+        function handleClearCompare(keepUserTeam = false) {
+            const userTeamName = state.currentTeams?.find(team => team.isUserTeam)?.teamName;
+            const teamsToKeep = new Set();
+            if (keepUserTeam && userTeamName && state.teamsToCompare.has(userTeamName)) {
+                teamsToKeep.add(userTeamName);
+            }
+            state.teamsToCompare = teamsToKeep;
+            state.isCompareMode = false;
+            rosterView.classList.remove('is-trade-mode');
+            rosterGrid.classList.remove('is-preview-mode');
+            updateCompareButtonState();
+            clearTrade();
+            window.scrollTo(0, 0); // scroll to top
+            updateHeaderPreviewState(); // call before render
+            if (typeof window.updateMobileLeagueNav === 'function') {
+                window.updateMobileLeagueNav();
+            }
+            if (state.currentTeams) {
+                renderAllTeamData(state.currentTeams);
+            }
+        }
+        function lockCompareButtonSize() {
+            if (!compareButton) return;
+            if (compareButton.style.width && compareButton.style.height) {
+                return;
+            }
+            const rect = compareButton.getBoundingClientRect();
+            compareButton.style.width = `${rect.width}px`;
+            compareButton.style.height = `${rect.height}px`;
+        }
+        function unlockCompareButtonSize() {
+            if (!compareButton) return;
+            compareButton.style.width = '';
+            compareButton.style.height = '';
+        }
+        function updateCompareButtonState() {
+            if (!compareButton) {
+                return;
+            }
+            const count = state.teamsToCompare.size;
+            compareButton.disabled = count < 2;
+            if (count > 1) {
+                compareButton.classList.add('glow-on-select');
+            } else {
+                compareButton.classList.remove('glow-on-select');
+            }
+            if (state.isCompareMode) {
+                lockCompareButtonSize();
+                compareButton.innerHTML = COMPARE_BUTTON_SHOW_ALL_HTML;
+                compareButton.classList.add('active', 'compare-show-all');
+                compareButton.classList.remove('glow-on-select');
+            } else {
+                compareButton.innerHTML = COMPARE_BUTTON_PREVIEW_HTML;
+                compareButton.classList.remove('active');
+                compareButton.classList.remove('compare-show-all');
+                unlockCompareButtonSize();
+            }
+            if (count < 2 && state.isCompareMode) {
+                handleCompareClick(); // Automatically exit compare mode
+            }
+        }
+        function openCompareSearch() {
+            if (!compareSearchPopover || !compareSearchToggle || !compareSearchInput) {
+                return;
+            }
+            compareSearchPopover.classList.remove('hidden');
+            compareSearchToggle.setAttribute('aria-expanded', 'true');
+            compareSearchInput.focus();
+        }
+        function closeCompareSearch() {
+            if (!compareSearchPopover || !compareSearchToggle || !compareSearchInput) {
+                return;
+            }
+            compareSearchPopover.classList.add('hidden');
+            compareSearchToggle.setAttribute('aria-expanded', 'false');
+            compareSearchInput.value = '';
+            filterTeamsByQuery('');
+            if (document.activeElement === compareSearchInput) {
+                compareSearchToggle.focus();
+            }
+        }
+        function openViewDropdown() {
+            if (!viewDropdownMenu || !viewDropdownToggle) return;
+            viewDropdownMenu.classList.remove('hidden');
+            viewDropdownToggle.setAttribute('aria-expanded', 'true');
+        }
+        function closeViewDropdown() {
+            if (!viewDropdownMenu || !viewDropdownToggle) return;
+            viewDropdownMenu.classList.add('hidden');
+            viewDropdownToggle.setAttribute('aria-expanded', 'false');
+        }
+        function filterTeamsByQuery(q) {
+            if (!rosterGrid) {
+                return;
+            }
+            const query = (q || '').trim().toLowerCase();
+            const rosterColumns = rosterGrid.querySelectorAll('.roster-column');
+            rosterColumns.forEach(column => {
+                const playerRows = column.querySelectorAll('.player-row');
+                let hasMatch = false;
+                playerRows.forEach(row => {
+                    const playerName = (row.dataset.playerName || row.dataset.assetLabel || '').toLowerCase();
+                    const matches = !query || playerName.includes(query);
+                    row.classList.toggle('compare-search-hidden', Boolean(query) && !matches);
+                    if (matches) {
+                        hasMatch = true;
+                    }
+                });
+                const sections = column.querySelectorAll('.roster-section');
+                sections.forEach(section => {
+                    const visiblePlayer = section.querySelector('.player-row:not(.compare-search-hidden)');
+                    section.classList.toggle('compare-search-hidden', Boolean(query) && !visiblePlayer);
+                });
+                const pickRows = column.querySelectorAll('.pick-row');
+                pickRows.forEach(row => {
+                    row.classList.toggle('compare-search-hidden', Boolean(query));
+                });
+                column.classList.toggle('compare-search-hidden', Boolean(query) && !hasMatch);
+            });
+        }
+        let searchDebounce;
+        compareSearchToggle?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = compareSearchToggle.getAttribute('aria-expanded') === 'true';
+            if (isOpen) {
+                closeCompareSearch();
+            } else {
+                openCompareSearch();
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!compareSearchPopover || !compareSearchToggle) {
+                return;
+            }
+            if (compareSearchPopover.classList.contains('hidden')) {
+                return;
+            }
+            if (!compareSearchPopover.contains(e.target) && !compareSearchToggle.contains(e.target)) {
+                closeCompareSearch();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeCompareSearch();
+            }
+        });
+        compareSearchInput?.addEventListener('input', (e) => {
+            const val = e.target.value;
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => filterTeamsByQuery(val), 120);
+        });
+        compareSearchClose?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeCompareSearch();
+            compareSearchToggle?.focus();
+        });
+        function handleAssetClickForTrade(e) {
+            if (state.isStartSitMode) {
+                handleStartSitPlayerClick(e);
+                return;
+            }
+            if (!state.isCompareMode) return;
+            const assetRow = e.target.closest('.player-row, .pick-row');
+            if (!assetRow) return;
+            const teamName = assetRow.closest('.roster-column')?.dataset.teamName;
+            if (!teamName || !state.teamsToCompare.has(teamName)) return;
+            const { assetId, assetLabel, assetKtc, assetPos, assetBasePos, assetTeam } = assetRow.dataset;
+            if (!assetId) return;
+            if (!state.tradeBlock[teamName]) {
+                state.tradeBlock[teamName] = [];
+            }
+            const assetIndex = state.tradeBlock[teamName].findIndex(a => a.id === assetId);
+            if (assetIndex > -1) {
+                state.tradeBlock[teamName].splice(assetIndex, 1);
+                assetRow.classList.remove('player-selected');
+            } else {
+                state.tradeBlock[teamName].push({
+                    id: assetId,
+                    label: assetLabel,
+                    ktc: parseInt(assetKtc, 10) || 0,
+                    pos: assetPos,
+                    basePos: assetBasePos || assetPos,
+                    team: assetTeam || ''
+                });
+                assetRow.classList.add('player-selected');
+            }
+            renderTradeBlock();
+        }
+        function clearTrade() {
+            state.tradeBlock = {};
+            document.querySelectorAll('.player-selected').forEach(el => el.classList.remove('player-selected'));
+            renderTradeBlock();
+            closeComparisonModal();
+        }
         // --- Position Filter Logic ---
         
         // Debounce helper for performance
@@ -4346,24 +5104,362 @@ const wrTeStatOrder = [
             return row;
         }
         function renderStartSitPreview() {
-            // Start/Sit UI removed — keep tradeSimulator hidden
-            try {
-                if (tradeSimulator) { tradeSimulator.style.display = 'none'; tradeSimulator.innerHTML = ''; }
-            } catch (e) { /* noop */ }
+            const selections = state.startSitSelections || [];
+            const currentWeekNumber = getCurrentNflWeekNumber();
+            // weekLabel now holds just the WK number (e.g. WK5). Bracketing and styling are applied in the template.
+            const weekLabel = Number.isFinite(currentWeekNumber) ? `WK${currentWeekNumber}` : '';
+            const weekLabelDisplay = weekLabel ? `[${weekLabel}]` : '';
+            const escapeHtml = (value) => {
+                if (value === null || value === undefined) return '';
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            };
+            tradeSimulator.innerHTML = `
+                            <div class="trade-container glass-panel start-sit-container">
+                    <div class="trade-header">
+                            <div class="trade-header-left">
+                            <h3><i class="fa-solid fa-elevator analyzer-icon"></i> Start/Sit<span class="start-sit-week">${weekLabelDisplay}</span></h3>
+                        </div>
+            <div class="trade-header-center">
+              <button id="collapseTradeButton"><i class="fa-solid fa-caret-down"></i></button>
+            </div>
+            <div class="trade-header-right">
+              <button id="comparePlayersButton" class="control-button-subtle">
+                <i class="fa-solid fa-chart-simple"></i>
+                <span class="label">Compare</span>
+              </button>
+              <button id="clearTradeButton" type="button">
+                <i class="fa-solid fa-eraser"></i>
+                <span class="label">Clear</span>
+              </button>
+              <button id="closeTradeButton" type="button">
+                <i class="fa-solid fa-circle-xmark"></i>
+                <span class="label">Close</span>
+              </button>
+            </div>
+          </div>
+          <div class="trade-body"></div>
+          <div class="trade-footnote">• Projected Points •</div>
+        </div>
+    <button id="showTradeButton"><i class="fa-solid fa-circle-chevron-up"></i> <span class="show-button-label">Start/Sit <i class="fa-solid fa-elevator analyzer-icon"></i></span><span class="start-sit-week"></span> <i class="fa-solid fa-circle-chevron-up"></i></button>
+  `;
+            const sides = ['left', 'right'];
+            const sideLabels = { left: 'Player 1', right: 'Player 2' };
+            const tradeBody = tradeSimulator.querySelector('.trade-body');
+            let bodyHtml = '';
+            sides.forEach((side, index) => {
+                const selection = selections.find(sel => sel.side === side);
+                let assetsHTML = '';
+                let totalDisplay = '—';
+                let projectionColor = 'var(--color-text-tertiary)';
+                let matchupSectionHtml = '';
+                if (selection) {
+                    const tagColor = TAG_COLORS[selection.pos] || 'var(--pos-bn)';
+                    const posForColor = selection.basePos || selection.pos;
+                    const rankColor = Number.isFinite(selection.ppgPosRank)
+                        ? getConditionalColorByRank(selection.ppgPosRank, posForColor)
+                        : 'var(--color-text-tertiary)';
+                    const baseLabel = posForColor || '';
+                    const rankText = (selection.ppgPosRankDisplay && selection.ppgPosRankDisplay !== 'NA')
+                        ? selection.ppgPosRankDisplay
+                        : (baseLabel ? `${baseLabel}·NA` : 'NA');
+                    const posColor = getPosRankColor(rankText);
+                    const ppgText = selection.ppgDisplay || 'NA';
+                    const hasPositivePpg = typeof selection.ppg === 'number' && selection.ppg > 0;
+                    const hasPpgRankNumber = Number.isFinite(selection.ppgPosRank) && selection.ppgPosRank > 0;
+                    const projectionValue = typeof selection.projection === 'number'
+                        ? selection.projection
+                        : Number.parseFloat(selection.projection);
+                    const ppgColor = hasPositivePpg && hasPpgRankNumber
+                        ? getConditionalColorByRank(selection.ppgPosRank, posForColor)
+                        : (hasPositivePpg ? 'var(--color-text-mid-test1)' : 'var(--color-text-tertiary)');
+                    const projectionDisplay = selection.projection !== null
+                        ? selection.projection.toFixed(1)
+                        : ((selection.projectionDisplay && selection.projectionDisplay.toUpperCase() !== 'NA') ? selection.projectionDisplay : '—');
+                    if (Number.isFinite(projectionValue)) {
+                        const derivedColor = getProjectionColorForValue(posForColor, projectionValue);
+                        if (derivedColor) {
+                            projectionColor = derivedColor;
+                        } else if (hasPpgRankNumber) {
+                            projectionColor = getConditionalColorByRank(selection.ppgPosRank, posForColor);
+                        } else if (hasPositivePpg) {
+                            projectionColor = 'var(--color-text-mid-test1)';
+                        } else {
+                            projectionColor = 'var(--color-text-secondary)';
+                        }
+                    }
+                    if (selection.matchup) {
+                        const { opponent, opponentOrdinal, opponentRankDisplay, color, isBye } = selection.matchup;
+                        const opponentText = opponent || (isBye ? 'BYE' : '');
+                        if (opponentText) {
+                            const opponentStyle = color && !isBye ? ` style="color: ${color};"` : '';
+                            const rankRawText = !isBye
+                                ? (opponentOrdinal || (opponentRankDisplay && opponentRankDisplay !== 'NA' ? opponentRankDisplay : ''))
+                                : '';
+                            const hasRankText = Boolean(rankRawText);
+                            const rankStyle = color && !isBye ? ` style="color: ${color};"` : '';
+                            const safeOpponent = escapeHtml(opponentText);
+                            const rankHtml = hasRankText
+                                ? `<span class="start-sit-matchup-sep">•</span><span class="start-sit-matchup-rank"${rankStyle}>${escapeHtml(rankRawText)}</span>`
+                                : '';
+                            matchupSectionHtml = `<div class="start-sit-matchup-meta"><span class="start-sit-matchup-opponent"${opponentStyle}>${safeOpponent}</span>${rankHtml}</div>`;
+                        }
+                    }
+                    const rankParts = rankText.split('·');
+                    const rankNumberDisplay = rankParts.length > 1 ? rankParts.slice(1).join('·') : 'NA';
+                    assetsHTML = `
+                        <div class="trade-asset-chip start-sit-chip">
+                            <div class="start-sit-chip-body">
+                                <span class="start-sit-name">
+                                    <span class="start-sit-inline-tag player-tag" style="background-color: ${tagColor};">${selection.pos}</span>
+                                    <span class="start-sit-name-text">${escapeHtml(selection.label)}</span>
+                                </span>
+                                <span class="start-sit-metric"><span class="start-sit-metric-value" style="color: ${ppgColor};">${ppgText}</span><span class="start-sit-metric-unit">PPG</span><span class="start-sit-metric-sep">•</span><span class="start-sit-rank"><span class="start-sit-rank-pos" style="color: ${posColor};">${posForColor}</span><span class="start-sit-rank-dot">·</span><span class="start-sit-rank-number" style="color: ${rankColor};">${rankNumberDisplay}</span></span></span>
+                            </div>
+                        </div>`;
+                    totalDisplay = projectionDisplay;
+                } else {
+                    assetsHTML = `<span class="text-xs text-slate-500 p-2">Select a player...</span>`;
+                }
+                const safeTotal = escapeHtml(totalDisplay);
+                bodyHtml += `
+                    <div class="trade-team-column start-sit-preview-column">
+                        <h4>${sideLabels[side]}</h4>
+                        <div class="trade-assets">${assetsHTML}</div>
+                        <div class="trade-total even start-sit-total">
+                            <span class="start-sit-total-label">Projected Points:</span>
+                            <span class="start-sit-total-value" style="color: ${projectionColor};">${safeTotal}</span>
+                        </div>
+                        ${matchupSectionHtml}
+                    </div>
+                `;
+                if (index < sides.length - 1) {
+                    bodyHtml += `<div class="trade-divider"></div>`;
+                }
+            });
+            tradeBody.innerHTML = bodyHtml;
+            const comparePlayersButton = document.getElementById('comparePlayersButton');
+            if (comparePlayersButton) {
+                if (selections.length === 2) {
+                    comparePlayersButton.classList.add('enabled');
+                } else {
+                    comparePlayersButton.classList.remove('enabled');
+                }
+            }
+            tradeSimulator.classList.toggle('collapsed', state.isTradeCollapsed);
+            const clearBtn = document.getElementById('clearTradeButton');
+            if (clearBtn) {
+                clearBtn.disabled = selections.length === 0;
+                clearBtn.addEventListener('click', clearStartSitSelections);
+            }
+            const closeBtn = document.getElementById('closeTradeButton');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => exitStartSitMode());
+            }
+            const collapseBtn = document.getElementById('collapseTradeButton');
+            if (collapseBtn) {
+                collapseBtn.addEventListener('click', () => {
+                    tradeSimulator.classList.add('collapsed');
+                    state.isTradeCollapsed = true;
+                    mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
+                    closeComparisonModal();
+                });
+            }
+            const showBtn = document.getElementById('showTradeButton');
+            if (showBtn) {
+                showBtn.addEventListener('click', () => {
+                    tradeSimulator.classList.remove('collapsed');
+                    state.isTradeCollapsed = false;
+                    mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
+                });
+            }
+            mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
         }
         function renderTradeBlock() {
-            // Trade preview / Start-Sit UI removed; ensure the element is hidden.
-            try {
-                if (tradeSimulator) { tradeSimulator.style.display = 'none'; tradeSimulator.innerHTML = ''; }
+            const tradeEligible = state.isCompareMode && state.teamsToCompare.size >= 2;
+            const startSitActive = state.isStartSitMode;
+            if (!tradeEligible && !startSitActive) {
+                tradeSimulator.style.display = 'none';
+                tradeSimulator.innerHTML = '';
                 mainContent.style.paddingBottom = '1rem';
-            } catch (e) { /* noop */ }
+                return;
+            }
+            tradeSimulator.style.display = 'block';
+            if (startSitActive) {
+                renderStartSitPreview();
+                return;
+            }
+            tradeSimulator.innerHTML = `
+              <div class="trade-container glass-panel">
+          <div class="trade-header">
+            <div class="trade-header-left">
+              <h3>Trade Preview <i class="fa-solid fa-code-compare fa-rotate-270"></i></h3>
+            </div>
+            <div class="trade-header-center">
+              <button id="collapseTradeButton"><i class="fa-solid fa-caret-down"></i></button>
+            </div>
+            <div class="trade-header-right">
+              <button id="comparePlayersButton" class="control-button-subtle">
+                <i class="fa-solid fa-chart-simple"></i>
+                <span class="label">Compare</span>
+              </button>
+              <button id="clearTradeButton" type="button">
+                <i class="fa-solid fa-eraser"></i>
+                <span class="label">Clear</span>
+              </button>
+              <button id="closeTradeButton" type="button">
+                <i class="fa-solid fa-circle-xmark"></i>
+                <span class="label">Close</span>
+              </button>
+            </div>
+          </div>
+          <div class="trade-body"></div>
+          <div class="trade-footnote">• Non-Adjusted Values •</div>
+        </div>
+        <button id="showTradeButton"><i class="fa-solid fa-circle-chevron-up"></i> Trade Preview <i class="fa-solid fa-circle-chevron-up"></i></button>
+  `;
+            const tradeBody = tradeSimulator.querySelector('.trade-body');
+            const teamNames = Array.from(state.teamsToCompare);
+            const tradeData = {};
+            teamNames.forEach(name => {
+                const assets = state.tradeBlock[name] || [];
+                const totalKtc = assets.reduce((sum, asset) => sum + asset.ktc, 0);
+                tradeData[name] = { assets, totalKtc };
+            });
+            const totals = teamNames.map(name => tradeData[name].totalKtc);
+            const totalClasses = {};
+            if (teamNames.length === 2) {
+                const diff = totals[0] - totals[1];
+                if (diff > 500) {
+                    totalClasses[teamNames[0]] = 'winning';
+                    totalClasses[teamNames[1]] = 'losing';
+                } else if (diff < -500) {
+                    totalClasses[teamNames[0]] = 'losing';
+                    totalClasses[teamNames[1]] = 'winning';
+                } else {
+                    totalClasses[teamNames[0]] = 'even';
+                    totalClasses[teamNames[1]] = 'even';
+                }
+            }
+            let bodyHtml = '';
+            teamNames.forEach((teamName, index) => {
+                const { assets, totalKtc } = tradeData[teamName];
+                let assetsHTML = '';
+                if (assets.length > 0) {
+                    assets.forEach(asset => {
+                        const ktcColor = getKtcColor(asset.ktc);
+                        const tagColor = TAG_COLORS[asset.pos] || 'var(--pos-bn)';
+                        assetsHTML += `<div class="trade-asset-chip"><span class="player-tag" style="background-color: ${tagColor};">${asset.pos || 'DP'}</span><span>${asset.label}</span><span class="ktc" style="color: ${ktcColor}">(${asset.ktc})</span></div>`;
+                    });
+                } else {
+                    assetsHTML = `<span class="text-xs text-slate-500 p-2">Select assets...</span>`;
+                }
+                const totalClass = totalClasses[teamName] || 'even';
+                let teamNameDisplay = teamName;
+                if (teamNames.length === 2) {
+                    if (index === 0) teamNameDisplay = `${teamName}`;
+                    if (index === 1) teamNameDisplay = `${teamName}`;
+                }
+                bodyHtml += `
+                    <div class="trade-team-column">
+                       <h4>${teamNameDisplay}</h4>
+                        <div class="trade-assets">${assetsHTML}</div>
+                        <div class="trade-total ${totalClass}">
+                            Total KTC: ${totalKtc}
+                        </div>
+                    </div>
+                `;
+                if (index < teamNames.length - 1 && teamNames.length > 1) {
+                     bodyHtml += `<div class="trade-divider"></div>`;
+                }
+            });
+            tradeBody.innerHTML = bodyHtml;
+            // Disable/enable Clear button based on whether any assets are selected
+            const clearBtn = document.getElementById('clearTradeButton');
+            try {
+                const hasAnyAssets = Object.values(tradeData).some(d => Array.isArray(d.assets) && d.assets.length > 0);
+                if (clearBtn) clearBtn.disabled = !hasAnyAssets;
+            } catch (e) { /* no-op */ }
+            const comparePlayersButton = document.getElementById('comparePlayersButton');
+            if (comparePlayersButton) {
+                const selectedPlayers = Object.values(state.tradeBlock).flat().filter(asset => asset.pos !== 'DP');
+                if (selectedPlayers.length === 2) {
+                    comparePlayersButton.classList.add('enabled');
+                } else {
+                    comparePlayersButton.classList.remove('enabled');
+                }
+            }
+            tradeSimulator.classList.toggle('collapsed', state.isTradeCollapsed);
+            document.getElementById('clearTradeButton').addEventListener('click', clearTrade);
+            const closeTradeButton = document.getElementById('closeTradeButton');
+            if (closeTradeButton) {
+                closeTradeButton.addEventListener('click', () => {
+                    handleClearCompare(true);
+                });
+            }
+            document.getElementById('collapseTradeButton').addEventListener('click', () => {
+                tradeSimulator.classList.add('collapsed');
+                state.isTradeCollapsed = true;
+                mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
+                closeComparisonModal();
+            });
+            document.getElementById('showTradeButton').addEventListener('click', () => {
+                tradeSimulator.classList.remove('collapsed');
+                state.isTradeCollapsed = false;
+                mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
+            });
+            mainContent.style.paddingBottom = `${tradeSimulator.offsetHeight + 20}px`;
         }
         // --- Player List (Ownership) Functions ---
         async function renderPlayerList() {
-            // Ownership / player list view removed per cleanup.
-            try {
-                if (playerListView) playerListView.innerHTML = '<p class="text-center p-4">Ownership view has been removed.</p>';
-            } catch (e) { /* noop */ }
+    hideLegend();
+            playerListView.innerHTML = '<p class="text-center p-4">Fetching user leagues and rosters...</p>';
+            assignedLeagueColors.clear();
+            nextColorIndex = 0;
+            assignedRyColors.clear();
+            nextRyColorIndex = 0;
+            const userLeagues = await fetchUserLeagues(state.userId);
+            const rostersByLeague = await Promise.all(userLeagues.map(l => fetchWithCache(`${API_BASE}/league/${l.league_id}/rosters`)));
+            const agg = new Map();
+            rostersByLeague.forEach((rosters, idx) => {
+                const leagueName = userLeagues[idx].name;
+                const leagueAbbr = getLeagueAbbr(leagueName);
+                const myRoster = rosters.find(r => r.owner_id === state.userId || (Array.isArray(r.co_owners) && r.co_owners.includes(state.userId)));
+                if (!myRoster) return;
+                const pids = new Set((myRoster.players || []).filter(Boolean));
+                pids.forEach(pid => {
+                    if (!agg.has(pid)) agg.set(pid, new Set());
+                    agg.get(pid).add(leagueAbbr);
+                });
+            });
+            const section = document.createElement('div');
+            section.className = 'player-list-section';
+            const header = createPlayerListHeader();
+            section.appendChild(header);
+            const rows = Array.from(agg.entries()).map(([pid, leagueSet]) => createPlayerListRow(pid, leagueSet, userLeagues.length)).filter(Boolean);
+            rows.sort((a, b) => {
+                const countDiff = Number(b.dataset.count || 0) - Number(a.dataset.count || 0);
+                if (countDiff !== 0) return countDiff;
+                return a.dataset.search.localeCompare(b.dataset.search);
+            });
+            rows.forEach(r => section.appendChild(r));
+            playerListView.innerHTML = '';
+            const searchInput = document.createElement('input');
+            searchInput.id = 'playerSearch';
+            searchInput.type = 'text';
+            searchInput.placeholder = 'Filter players by name...';
+            playerListView.appendChild(searchInput);
+            playerListView.appendChild(section);
+            searchInput.oninput = () => {
+                const term = searchInput.value.trim().toLowerCase();
+                section.querySelectorAll('.pl-player-row:not(.pl-list-header)').forEach(r => {
+                    r.style.display = (r.dataset.search || '').includes(term) ? 'flex' : 'none';
+                });
+            };
         }
         function createPlayerListHeader() {
             const header = document.createElement('div');
