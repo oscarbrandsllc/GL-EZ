@@ -43,7 +43,7 @@ function showLegend(){ try{ document.getElementById('legend-section')?.classList
         const modalInfoBtns = document.querySelectorAll('.modal-info-btn');
         const statsKeyContainer = document.getElementById('stats-key-container');
         const radarChartContainer = document.getElementById('radar-chart-container');
-        const newsContainer = document.getElementById('news-container');
+        const consistencyContainer = document.getElementById('consistency-container');
         const modalOverlay = document.querySelector('.modal-overlay');
         const modalPlayerName = document.getElementById('modal-player-name');
         const modalPlayerVitals = document.getElementById('modal-player-vitals');
@@ -463,7 +463,7 @@ let state = { userId: null, leagues: [], players: {}, oneQbData: {}, sflxData: {
                         const overlayContainers = {
                             'stats-key': statsKeyContainer,
                             'radar-chart': radarChartContainer,
-                            'news': newsContainer
+                            'consistency': consistencyContainer
                         };
                         
                         // Special handling for game-logs - can't be toggled off
@@ -514,6 +514,12 @@ let state = { userId: null, leagues: [], players: {}, oneQbData: {}, sflxData: {
                                 if (player && player.pos) {
                                     renderPlayerRadarChart(player.id, player.pos);
                                 }
+                            }
+                            
+                            // If opening consistency panel, render chart structure
+                            if (targetPanel === 'consistency') {
+                                renderConsistencyChart();
+                                hydrateConsistencyProgressCircles();
                             }
                         }
                     });
@@ -2766,6 +2772,97 @@ const SEASON_META_HEADERS = {
             // Store chart instance for cleanup
             container._chartInstance = Chart.getChart('player-radar-canvas');
         }
+        
+        // Consistency Chart Rendering (Structure Only - No Data Binding)
+        const MAX_CONSISTENCY_POINTS = 40;
+        
+        function renderConsistencyChart() {
+            const chartBox = document.getElementById('consistency-weekly-chart-box');
+            const pointsLayer = document.getElementById('consistency-weekly-chart-points');
+            const xAxisEl = document.getElementById('consistency-weekly-chart-x-axis');
+            const yAxisEl = document.getElementById('consistency-weekly-chart-y-axis');
+            
+            if (!chartBox || !pointsLayer || !xAxisEl || !yAxisEl) return;
+            
+            // Clear existing content
+            chartBox.querySelectorAll('.weekly-zone').forEach(zone => zone.remove());
+            pointsLayer.innerHTML = '';
+            xAxisEl.innerHTML = '';
+            yAxisEl.innerHTML = '';
+            
+            // Create zones (structure only)
+            createConsistencyZones(chartBox);
+            
+            // Render axes (structure only - empty)
+            renderConsistencyYAxis(yAxisEl);
+            renderConsistencyXAxis(xAxisEl);
+        }
+        
+        function createConsistencyZones(chartBox) {
+            const stops = [
+                { className: 'weekly-zone--bad', label: 'Under < 16', to: 15.9 },
+                { className: 'weekly-zone--good', label: 'Solid ≥ 16', to: 21.9 },
+                { className: 'weekly-zone--great', label: 'Elite > 22', to: MAX_CONSISTENCY_POINTS }
+            ];
+            
+            let prev = 0;
+            stops.forEach(zone => {
+                const pct = (zone.to / MAX_CONSISTENCY_POINTS) * 100;
+                const zoneEl = document.createElement('div');
+                zoneEl.className = `weekly-zone ${zone.className}`;
+                zoneEl.style.top = `calc(${100 - pct}% - 1px)`;
+                zoneEl.style.height = `calc(${pct - prev}%)`;
+                
+                const label = document.createElement('span');
+                label.className = 'weekly-zone-label';
+                label.textContent = zone.label;
+                zoneEl.appendChild(label);
+                
+                chartBox.appendChild(zoneEl);
+                prev = pct;
+            });
+        }
+        
+        function renderConsistencyYAxis(yAxisEl) {
+            // Create empty Y-axis structure (ready for future data)
+            [40, 22, 16, 0].forEach(tick => {
+                const tickEl = document.createElement('div');
+                tickEl.className = 'weekly-chart-y-tick';
+                tickEl.textContent = `${tick} fpts`;
+                yAxisEl.appendChild(tickEl);
+            });
+        }
+        
+        function renderConsistencyXAxis(xAxisEl) {
+            // Create empty X-axis structure (ready for future data)
+            // For now, just render placeholder week labels
+            for (let week = 1; week <= 17; week++) {
+                const span = document.createElement('span');
+                span.textContent = `WK ${week}`;
+                xAxisEl.appendChild(span);
+            }
+        }
+        
+        function hydrateConsistencyProgressCircles() {
+            // Placeholder: Update progress circles with placeholder values
+            // Left circle: Consistency percentage
+            const consistencyCircle = document.querySelector(
+                '.progress-circle--consistency .progress-ring-fill'
+            );
+            if (consistencyCircle) {
+                // Placeholder: 66.7%
+                consistencyCircle.style.setProperty('--progress', '0.667');
+            }
+            
+            // Right circle: Ceiling rank (inverted: lower rank = more filled)
+            const ceilingCircle = document.querySelector(
+                '.progress-circle--ceiling .progress-ring-fill--ceiling'
+            );
+            if (ceilingCircle) {
+                // Placeholder: rank 4 of 20 = (20-4)/(20-1) = 0.842
+                ceilingCircle.style.setProperty('--progress', '0.842');
+            }
+        }
 
         function parseWeeklyStatsCsv(csvText) {
             const { headers, rows } = parseCsv(csvText);
@@ -3230,9 +3327,9 @@ const SEASON_META_HEADERS = {
                     radarChartContainer.classList.add('hidden');
                     modalBody.appendChild(radarChartContainer);
                 }
-                if (newsContainer) {
-                    newsContainer.classList.add('hidden');
-                    modalBody.appendChild(newsContainer);
+                if (consistencyContainer) {
+                    consistencyContainer.classList.add('hidden');
+                    modalBody.appendChild(consistencyContainer);
                 }
                 return;
             }
@@ -6159,7 +6256,7 @@ const wrTeStatOrder = [
             modalBody.classList.remove('hidden'); // Ensure game logs table is visible
             statsKeyContainer.classList.add('hidden');
             if (radarChartContainer) radarChartContainer.classList.add('hidden');
-            if (newsContainer) newsContainer.classList.add('hidden');
+            if (consistencyContainer) consistencyContainer.classList.add('hidden');
             
             // Reset all buttons to inactive, then activate game-logs button
             const modalInfoBtns = document.querySelectorAll('.modal-info-btn');
@@ -6174,7 +6271,7 @@ const wrTeStatOrder = [
             gameLogsModal.classList.add('hidden');
             statsKeyContainer.classList.add('hidden');
             if (radarChartContainer) radarChartContainer.classList.add('hidden');
-            if (newsContainer) newsContainer.classList.add('hidden');
+            if (consistencyContainer) consistencyContainer.classList.add('hidden');
             
             // Reset all button active states
             const modalInfoBtns = document.querySelectorAll('.modal-info-btn');

@@ -334,11 +334,116 @@
           <!-- Radar chart will be dynamically rendered here -->
         </div>
     </div>
-    <div id="news-container" class="hidden stats-key-panel">
-        <h4>Player News & Updates</h4>
-        <div class="news-content">
-          <!-- News content will be rendered here -->
-        </div>
+    <div id="consistency-container" class="hidden stats-key-panel">
+        <!-- HUD Band -->
+        <header class="consistency-hud">
+          <!-- Left: Consistency progress circle -->
+          <div class="hud-segment hud-segment--left">
+            <div class="progress-circle progress-circle--consistency" aria-label="Season Consistency Rate 66.7%">
+              <svg viewBox="0 0 120 120" class="progress-ring">
+                <defs>
+                  <linearGradient id="consistencyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#7cf5ff" />
+                    <stop offset="55%" stop-color="#9f8bff" />
+                    <stop offset="100%" stop-color="#c7a4ff" />
+                  </linearGradient>
+                </defs>
+                <circle
+                  class="progress-ring-track"
+                  cx="60"
+                  cy="60"
+                  r="46"
+                />
+                <circle
+                  class="progress-ring-fill"
+                  cx="60"
+                  cy="60"
+                  r="46"
+                  stroke="url(#consistencyGradient)"
+                  style="--progress: 0.667;"
+                />
+              </svg>
+              <div class="progress-circle-inner">
+                <div class="progress-value">66.7%</div>
+                <div class="progress-label">Consistency Rate</div>
+                <div class="progress-caption">2025 CSTY RATE</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Center: Key stats -->
+          <div class="hud-segment hud-segment--center">
+            <div class="hud-player">
+              <div class="hud-eyebrow">Consistency & Ceiling  |  Weekly Overview</div>
+              <div class="hud-context"><span class="hud-player-name">Player Name</span> • Weeks 1–17</div>
+            </div>
+            <div class="hud-metrics">
+              <div class="metric-block">
+                <div class="metric-label">Consistency</div>
+                <div class="metric-primary">
+                  <span class="metric-value">66.7%</span>
+                  <span class="metric-sub">Pos Rank: 11</span>
+                </div>
+              </div>
+              <div class="metric-block">
+                <div class="metric-label">Ceiling</div>
+                <div class="metric-primary">
+                  <span class="metric-value">28.8</span>
+                  <span class="metric-sub">Pos Rank: 4</span>
+                </div>
+              </div>
+            </div>
+            <div class="hud-zones-legend">
+              <span class="zone-chip zone-chip--bad">Bad 0–16</span>
+              <span class="zone-chip zone-chip--good">Good 16–22</span>
+              <span class="zone-chip zone-chip--great">Great 22–40</span>
+            </div>
+          </div>
+
+          <!-- Right: Ceiling positional ranking circle -->
+          <div class="hud-segment hud-segment--right">
+            <div class="progress-circle progress-circle--ceiling" aria-label="Ceiling Positional Rank 4, closer to 1 is better">
+              <svg viewBox="0 0 120 120" class="progress-ring">
+                <defs>
+                  <linearGradient id="ceilingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ffb47e" />
+                    <stop offset="40%" stop-color="#7cf5ff" />
+                    <stop offset="100%" stop-color="#ff89cf" />
+                  </linearGradient>
+                </defs>
+                <circle
+                  class="progress-ring-track"
+                  cx="60"
+                  cy="60"
+                  r="46"
+                />
+                <circle
+                  class="progress-ring-fill progress-ring-fill--ceiling"
+                  cx="60"
+                  cy="60"
+                  r="46"
+                  stroke="url(#ceilingGradient)"
+                  style="--progress: 0.842;"
+                />
+              </svg>
+              <div class="progress-circle-inner">
+                <div class="progress-value">4</div>
+                <div class="progress-label">Ceiling<br> Rank</div>
+                <div class="progress-caption">2025 CL POS RANK</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Chart container: reference weekly chart shell -->
+        <section class="consistency-chart-shell">
+          <div class="weekly-chart-box" id="consistency-weekly-chart-box">
+            <div class="weekly-chart-y-axis" id="consistency-weekly-chart-y-axis"></div>
+            <div class="weekly-chart-grid" aria-hidden="true"></div>
+            <div class="weekly-chart-line-layer" id="consistency-weekly-chart-points"></div>
+            <div class="weekly-chart-x-axis" id="consistency-weekly-chart-x-axis"></div>
+          </div>
+        </section>
     </div>
    <div class="modal-footer">
   <div class="key-chip modal-info-btn active" data-panel="game-logs">
@@ -349,9 +454,9 @@
     <i class="fa-solid fa-chart-area"></i>
     <span>Performance</span>
   </div>
-  <div class="key-chip modal-info-btn" data-panel="news">
-    <i class="fa-solid fa-newspaper"></i>
-    <span>News</span>
+  <div class="key-chip modal-info-btn" data-panel="consistency">
+    <i class="fa-solid fa-chart-line"></i>
+    <span>Consistency</span>
   </div>
   <div class="key-chip modal-info-btn" data-panel="stats-key">
     <i class="fa-solid fa-key"></i>
